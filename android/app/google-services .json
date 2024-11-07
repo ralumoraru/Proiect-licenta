@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "23405943731",
+    "project_id": "flight-ticket-checker-44315",
+    "storage_bucket": "flight-ticket-checker-44315.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:23405943731:android:8fe064a29e2368db90c9c6",
+        "android_client_info": {
+          "package_name": "com.example.proiect_licenta"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "23405943731-g0lg4bf7sa9mlmbliu95ntfe9sgiuv2p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8J1hwgWD1AFMrMt7z5qn3Af4q2iKB72A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "23405943731-g0lg4bf7sa9mlmbliu95ntfe9sgiuv2p.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "23405943731-kfr1ukn0jvfo6vj4b9925hbh22kelnse.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.flightTicketChecker"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
+import 'loginpages/signout.dart';
+
 class AppNavigationBar extends StatefulWidget {
   const AppNavigationBar({super.key});
 
@@ -24,6 +26,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
           style: theme.textTheme.titleLarge,
         ),
       ),
+      const SignOutPage(), // Add the sign-out page here
     ];
 
     return Scaffold(
@@ -33,6 +36,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
         items: const <Widget>[
           Icon(Icons.home, size: 30, color: Colors.white),
           Icon(Icons.search, size: 30, color: Colors.white),
+          Icon(Icons.exit_to_app, size: 30, color: Colors.white), // Sign-out button icon
         ],
         color: Colors.lightBlue,
         buttonBackgroundColor: Colors.blue,
@@ -45,7 +49,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
           });
         },
       ),
-      body: pages[currentPageIndex], // Afișează pagina curentă
+      body: pages[currentPageIndex], // Display the current page
     );
   }
 }

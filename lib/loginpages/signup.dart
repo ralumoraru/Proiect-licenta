@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -8,8 +10,7 @@ class SignUpPage extends StatefulWidget {
   State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage>
-{
+class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -18,19 +19,70 @@ class _SignUpPageState extends State<SignUpPage>
 
   Future<void> _signUp() async {
     try {
-      await _auth.createUserWithEmailAndPassword(
+      // Attempt to create the user in Firebase
+      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
-      Navigator.of(context).pushReplacementNamed('/home');
+
+      if (userCredential.user != null) {
+        print("User created successfully in Firebase");
+
+        // Get the UID of the newly created user
+        final String uid = userCredential.user!.uid;
+        print('User UID: $uid');
+        // Send user data to Laravel
+        await _sendUserDataToLaravel(uid, _emailController.text);
+
+        // Navigate to the next page if everything is successful
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
     } on FirebaseAuthException catch (e) {
+      print('Firebase Authentication Exception: ${e.message}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to sign up: ${e.message}'),
         ),
       );
+    } catch (e) {
+      print('Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Network error: $e'),
+        ),
+      );
     }
   }
+
+
+  Future<void> _sendUserDataToLaravel(String uid, String email) async {
+    final url = Uri.parse('http://192.168.0.84:8000/'); // Make sure this is your correct URL
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'firebase_uid': uid,  // Send the UID
+          'email': email,        // Send the email
+          // You can omit the name or send it if you have it
+        }),
+      );
+
+      print('Response from Laravel: ${response.body}'); // Check the response from the server
+
+      if (response.statusCode == 201) {
+        print('User saved successfully to Laravel');
+      } else {
+        print('Failed to save user to Laravel: ${response.body}');
+      }
+    } catch (e) {
+      print('Error sending user data: $e');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {

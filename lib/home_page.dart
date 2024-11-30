@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -11,6 +12,19 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final TextEditingController _fromController = TextEditingController();
   final TextEditingController _toController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Listen for authentication state changes
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user == null) {
+        // If user is null (signed out), redirect to login page
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +53,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-
           // Container that overlaps the image
           Positioned(
             top: 150, // Adjust this value to control the overlap with the image
@@ -69,26 +82,25 @@ class _HomePageState extends State<HomePage> {
                         TextField(
                           controller: _fromController,
                           decoration: InputDecoration(
-                            labelText: 'From', // Label for the TextField
+                            labelText: 'From',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20.0), // Rounded corners for the TextField
+                              borderRadius: BorderRadius.circular(20.0),
                             ),
-                            filled: true, // Fill the TextField
-                            fillColor: Colors.white, // Light grey background for the TextField
-
+                            filled: true,
+                            fillColor: Colors.white,
                           ),
                         ),
-                        SizedBox(height: 10), // Space between TextFields
+                        SizedBox(height: 10),
                         // To TextField
                         TextField(
                           controller: _toController,
                           decoration: InputDecoration(
-                            labelText: 'To', // Label for the TextField
+                            labelText: 'To',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20.0), // Rounded corners for the TextField
+                              borderRadius: BorderRadius.circular(20.0),
                             ),
-                            filled: true, // Fill the TextField
-                            fillColor: Colors.white, // Light grey background for the TextField
+                            filled: true,
+                            fillColor: Colors.white,
                           ),
                         ),
                       ],

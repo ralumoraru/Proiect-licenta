@@ -19,22 +19,17 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Future<void> _signUp() async {
     try {
-      // Attempt to create the user in Firebase
       final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
 
       if (userCredential.user != null) {
-        print("User created successfully in Firebase");
-
-        // Get the UID of the newly created user
         final String uid = userCredential.user!.uid;
         print('User UID: $uid');
-        // Send user data to Laravel
-        await _sendUserDataToLaravel(uid, _emailController.text);
 
-        // Navigate to the next page if everything is successful
+        await _sendUserDataToLaravel(_emailController.text);
+
         Navigator.of(context).pushReplacementNamed('/home');
       }
     } on FirebaseAuthException catch (e) {
@@ -55,28 +50,28 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
 
-  Future<void> _sendUserDataToLaravel(String uid, String email) async {
-    final url = Uri.parse('http://192.168.0.84:8000/'); // Make sure this is your correct URL
+  Future<void> _sendUserDataToLaravel(String email) async {
+    final url = Uri.parse('http://192.168.0.84:8000/api/auth/register'); // Make sure this is your correct URL
 
     try {
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
+
         },
         body: jsonEncode({
-          'firebase_uid': uid,  // Send the UID
-          'email': email,        // Send the email
-          // You can omit the name or send it if you have it
+          'name': 'Test User',  // Poți include un câmp pentru nume
+          'email': email,
+          'password': 'securepassword', // Trebuie să fie completat din formular
         }),
+
       );
 
-      print('Response from Laravel: ${response.body}'); // Check the response from the server
-
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200) {
         print('User saved successfully to Laravel');
       } else {
-        print('Failed to save user to Laravel: ${response.body}');
+        print('Failed to save user to Laravel: ${response.statusCode}');
       }
     } catch (e) {
       print('Error sending user data: $e');

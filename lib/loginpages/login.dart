@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,30 +14,81 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  // Firebase Auth instance
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // URL-ul API-ului pentru autentificare
+  final String apiUrl = 'https://0480-86-123-229-11.ngrok-free.app/api/login'; // Înlocuiește cu URL-ul corect
 
+  // Funcție pentru logare
   Future<void> _login() async {
-    try {
+    final String email = _emailController.text.trim();
+    final String password = _passwordController.text.trim();
 
-      await _auth.signInWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in both email and password fields.'),
+        ),
       );
-      Navigator.of(context).pushReplacementNamed('/home');
-    } on FirebaseAuthException catch (e) {
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final String token = data['token'];
+
+        // Salvează token-ul în SharedPreferences
+        await saveToken(token);
+
+        // Navighează către pagina principală
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else if (response.statusCode == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid email or password. Please try again.'),
+          ),
+        );
+      } else if (response.statusCode == 404) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User does not exist. Please sign up.'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to sign in: ${response.body}'),
+          ),
+        );
+      }
+    } catch (e) {
+      // Erori de rețea
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to sign in: ${e.message}'),
+          content: Text('Error: $e'),
         ),
       );
     }
   }
 
+  // Funcție pentru salvarea token-ului în SharedPreferences
+  Future<void> saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', token);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: Padding(
@@ -50,6 +103,7 @@ class _LoginPageState extends State<LoginPage> {
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
               decoration: InputDecoration(

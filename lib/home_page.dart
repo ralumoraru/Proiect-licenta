@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -16,14 +18,65 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _fetchData(); // Începe să obțină datele de la API după ce se încarcă pagina
+  }
 
-    // Listen for authentication state changes
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
-      if (user == null) {
-        // If user is null (signed out), redirect to login page
-        Navigator.pushReplacementNamed(context, '/login');
-      }
-    });
+  // Funcție pentru a obține token-ul din SharedPreferences
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  // Funcție pentru a obține date de la API-ul Laravel protejat
+  Future<void> _fetchData() async {
+    final String? token = await getToken();
+    if (token == null) {
+      print("Nu există token.");
+      return;
+    }
+
+    final response = await http.get(
+      Uri.parse('https://0480-86-123-229-11.ngrok-free.app/protected-endpoint'), // Înlocuiește cu endpoint-ul corect
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      // Afișează datele obținute de la server
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      print('Data primită: ${data['message']}');
+    } else {
+      print('Cererea a eșuat: ${response.body}');
+    }
+  }
+
+  // Funcție pentru a autentifica utilizatorul și a obține un token
+  Future<void> _login(String email, String password) async {
+    final response = await http.post(
+      Uri.parse('https://0480-86-123-229-11.ngrok-free.app/api/login'), // Înlocuiește cu endpoint-ul corect
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      final String token = data['token'];
+
+      // Salvează token-ul în SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      prefs.setString('token', token);
+
+      print('Token salvat: $token');
+    } else {
+      print('Autentificare eșuată: ${response.body}');
+    }
   }
 
   @override
@@ -32,53 +85,53 @@ class _HomePageState extends State<HomePage> {
     final double screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: Colors.white, // Background color
-      body: Stack( // Using a Stack to overlay widgets
+      backgroundColor: Colors.white,
+      body: Stack(
         children: [
-          // Image with rounded corners at the top
+          // Imaginea de fundal cu colțuri rotunjite
           Positioned(
-            top: 0, // Move the image to the top of the page
+            top: 0,
             left: 0,
             right: 0,
             child: ClipRRect(
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(30.0),
-                bottomRight: Radius.circular(30.0), // Rounded corners only at the bottom
+                bottomRight: Radius.circular(30.0),
               ),
               child: Image.asset(
-                'assets/images/airplane.jpg', // Path to the image
-                width: screenWidth, // Full width of the screen
-                height: 200, // Height of the image
-                fit: BoxFit.cover, // Adjust the image
+                'assets/images/airplane.jpg', // Înlocuiește cu imaginea dorită
+                width: screenWidth,
+                height: 200,
+                fit: BoxFit.cover,
               ),
             ),
           ),
-          // Container that overlaps the image
+          // Container care se suprapune pe imagine
           Positioned(
-            top: 150, // Adjust this value to control the overlap with the image
+            top: 150,
             left: 0,
             right: 0,
             child: Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: screenWidth * 0.05, // 5% of screen width for padding
-                vertical: screenHeight * 0.03, // 3% of screen height for vertical padding
+                horizontal: screenWidth * 0.05,
+                vertical: screenHeight * 0.03,
               ),
               child: Material(
-                elevation: 4, // Shadow effect for depth
+                elevation: 4,
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  height: screenHeight * 0.60, // Responsive height (60% of screen height)
-                  width: double.infinity, // Full width with padding
+                  height: screenHeight * 0.60,
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Padding(
-                    padding: EdgeInsets.all(screenWidth * 0.05), // 4% of screen width for padding
+                    padding: EdgeInsets.all(screenWidth * 0.05),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // From TextField
+                        // Câmpul 'From'
                         TextField(
                           controller: _fromController,
                           decoration: InputDecoration(
@@ -91,7 +144,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         SizedBox(height: 10),
-                        // To TextField
+                        // Câmpul 'To'
                         TextField(
                           controller: _toController,
                           decoration: InputDecoration(
@@ -102,6 +155,15 @@ class _HomePageState extends State<HomePage> {
                             filled: true,
                             fillColor: Colors.white,
                           ),
+                        ),
+                        SizedBox(height: 20),
+                        // Buton pentru login
+                        ElevatedButton(
+                          onPressed: () {
+                            // Înlocuiește cu valorile corecte de login
+                            _login('pare@pare.com', 'pass1234');
+                          },
+                          child: Text('Login'),
                         ),
                       ],
                     ),

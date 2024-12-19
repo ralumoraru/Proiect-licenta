@@ -51,7 +51,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
 
   Future<void> _sendUserDataToLaravel(String email) async {
-    final url = Uri.parse('http://192.168.0.84:8000/api/auth/register'); // Make sure this is your correct URL
+    final url = Uri.parse('https://0480-86-123-229-11.ngrok-free.app/api/register'); // Make sure this is your correct URL
 
     try {
       final response = await http.post(

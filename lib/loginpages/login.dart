@@ -15,7 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
 
   // URL-ul API-ului pentru autentificare
-  final String apiUrl = 'https://0480-86-123-229-11.ngrok-free.app/api/login'; // Înlocuiește cu URL-ul corect
+  final String apiUrl = 'https://viable-flamingo-advanced.ngrok-free.app/api/login'; // Înlocuiește cu URL-ul corect
 
   // Funcție pentru logare
   Future<void> _login() async {
@@ -43,6 +43,8 @@ class _LoginPageState extends State<LoginPage> {
         }),
       );
 
+      print('Email: $email, Password: $password');
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         final String token = data['token'];
@@ -50,8 +52,18 @@ class _LoginPageState extends State<LoginPage> {
         // Salvează token-ul în SharedPreferences
         await saveToken(token);
 
-        // Navighează către pagina principală
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Afișează mesajul de succes
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navighează către pagina principală după un mic delay
+        Future.delayed(const Duration(seconds: 1), () {
+          Navigator.of(context).pushReplacementNamed('/home');
+        });
       } else if (response.statusCode == 401) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -98,7 +110,7 @@ class _LoginPageState extends State<LoginPage> {
           children: <Widget>[
             TextField(
               controller: _emailController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Email',
                 border: OutlineInputBorder(),
               ),
@@ -106,7 +118,7 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Password',
                 border: OutlineInputBorder(),
               ),

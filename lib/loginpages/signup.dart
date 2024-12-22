@@ -28,7 +28,7 @@ class _SignUpPageState extends State<SignUpPage> {
         final String uid = userCredential.user!.uid;
         print('User UID: $uid');
 
-        await _sendUserDataToLaravel(_emailController.text);
+        await _sendUserDataToLaravel(_emailController.text, _passwordController.text);
 
         Navigator.of(context).pushReplacementNamed('/home');
       }
@@ -50,8 +50,8 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
 
-  Future<void> _sendUserDataToLaravel(String email) async {
-    final url = Uri.parse('https://0480-86-123-229-11.ngrok-free.app/api/register'); // Make sure this is your correct URL
+  Future<void> _sendUserDataToLaravel(String email, String password) async {
+    final url = Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/register'); // Make sure this is your correct URL
 
     try {
       final response = await http.post(
@@ -63,7 +63,7 @@ class _SignUpPageState extends State<SignUpPage> {
         body: jsonEncode({
           'name': 'Test User',  // Poți include un câmp pentru nume
           'email': email,
-          'password': 'securepassword', // Trebuie să fie completat din formular
+          'password': password, // Trebuie să fie completat din formular
         }),
 
       );

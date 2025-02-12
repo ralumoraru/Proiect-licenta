@@ -43,6 +43,7 @@ dependencies:
   http: ^1.2.2
   connectivity_plus: ^4.0.0
   shared_preferences: ^2.3.4
+  google_sign_in: ^6.2.2
 
 
 dev_dependencies:

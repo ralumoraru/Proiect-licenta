@@ -22,79 +22,56 @@ class _LoginPageState extends State<LoginPage> {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Funcție pentru logare
   Future<void> _login() async {
     final String email = _emailController.text.trim();
     final String password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in both email and password fields.'),
-        ),
+        const SnackBar(content: Text('Please fill in both email and password fields.')),
       );
       return;
     }
 
     try {
       final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
+        Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
       );
 
-      print('Email: $email, Password: $password');
-      print('Response Status: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        final String token = data['token'];
-        await saveToken(token);
+        final data = jsonDecode(response.body);
+        final String token = data['token']; // Preia token-ul din răspunsul de la backend
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Login successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        // Salvează token-ul în SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', token);
 
-        Future.delayed(const Duration(seconds: 1), () {
-          Navigator.of(context).pushReplacementNamed('/home');
-        });
+        // Redirecționează utilizatorul către pagina de home
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to sign in: ${response.body}'),
-          ),
+          SnackBar(content: Text('Failed to sign in: ${response.body}')),
         );
       }
     } catch (e) {
-      // Print the error to the console
       print('Login Error: $e');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   Future<void> _signInWithGoogle() async {
     try {
-      await _googleSignIn.signOut(); // Forțează reautentificarea
+      await _googleSignIn.signOut(); // Asigură-te că utilizatorul este delogat înainte
 
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        print('Google Sign-In cancelled');
+        print('Google Sign-In a fost anulat');
         return;
       }
+
+      print('Utilizator Google: ${googleUser.email}');
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
@@ -103,65 +80,53 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
-      final String? firebaseToken = await userCredential.user!.getIdToken();
+      final User? user = userCredential.user;
 
-      if (firebaseToken == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Google Sign-In failed: No token received.')),
-        );
+      if (user == null) {
+        print('Eroare: User este null după autentificare.');
         return;
       }
 
-      await _sendGoogleTokenToBackend(firebaseToken, googleUser);
+      print('Autentificare reușită pentru: ${user.email}');
 
+      final String? firebaseToken = await user.getIdToken();
+      if (firebaseToken == null) {
+        print('Eroare: Tokenul este null.');
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/google-login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'token': firebaseToken,
+          'name': user.displayName ?? 'Unknown User',
+          'email': user.email,
+          'google_id': user.uid,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final String backendToken = data['token']; // Token-ul generat de backend
+
+        // Salvează token-ul backend în SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', backendToken);
+
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        print('Eroare backend: ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google Login Failed: ${response.body}')),
+        );
+      }
     } catch (e) {
       print('Google Sign-In Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Google Sign-In Error: $e')),
       );
     }
-  }
-
-  Future<void> _sendGoogleTokenToBackend(String firebaseToken, GoogleSignInAccount googleUser) async {
-    final String apiUrl = 'https://viable-flamingo-advanced.ngrok-free.app/api/google-login';
-
-    try {
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'name': googleUser.displayName,
-          'email': googleUser.email,
-          'google_id': googleUser.id,
-          'profile_photo': googleUser.photoUrl,
-          'id_token': firebaseToken, // Trimitem token-ul Firebase la backend
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        final String backendToken = data['token'];
-
-        await saveToken(backendToken);
-        Navigator.of(context).pushReplacementNamed('/home');
-      } else {
-        print('Backend error: ${response.body}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: ${response.body}')),
-        );
-      }
-    } catch (e) {
-      print('Error sending token to backend: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Network error: $e')),
-      );
-    }
-  }
-
-
-  Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', token);
   }
 
   @override
@@ -208,16 +173,6 @@ class _LoginPageState extends State<LoginPage> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class HomePage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Home Page')),
-      body: Center(child: const Text('Welcome to Home!')),
     );
   }
 }

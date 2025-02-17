@@ -15,14 +15,14 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flight Ticket Checker',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const LoginPage(),  // Setează direct pagina de login ca ecran principal
+      // Utilizăm StreamBuilder pentru a asculta starea de autentificare a utilizatorului
+      home: const LoginPage(),
       routes: {
         '/login': (context) => const LoginPage(),
         '/sign-up': (context) => const SignUpPage(),
@@ -30,5 +30,4 @@ class MyApp extends StatelessWidget {
       },
     );
   }
-
 }

@@ -6,6 +6,7 @@ class Flight {
   final Airport arrivalAirport;
   final int duration;
   final int price;
+  final int stops;
 
   Flight({
     required this.flightNumber,
@@ -13,6 +14,7 @@ class Flight {
     required this.arrivalAirport,
     required this.duration,
     required this.price,
+    required this.stops
   });
 
   factory Flight.fromJson(Map<String, dynamic> json) {
@@ -22,6 +24,7 @@ class Flight {
       arrivalAirport: Airport.fromJson(json['arrival_airport']),
       duration: json['duration'] ?? 0,
       price: json['price'] ?? 0,
+      stops: json['stops'] ?? 0
     );
   }
 }

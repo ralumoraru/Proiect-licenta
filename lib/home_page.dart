@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'Flights/Flight.dart';
+import 'FlightResultPage.dart'; // Importăm noua pagină
+import 'IATACodeAPI.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -18,45 +20,59 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _departureDateController = TextEditingController();
   final TextEditingController _returnDateController = TextEditingController();
 
-  List<Flight> flights = []; // Lista de zboruri
+  List<Flight> flights = [];
+  final ApiService apiService = ApiService();  // Instanțiază serviciul API
 
-  // Funcție pentru a căuta zboruri
+  bool isIataCode(String input) {
+    return input.length == 3 && input == input.toUpperCase();
+  }
+
+
   Future<void> searchFlights() async {
-    final String from = _fromController.text.trim(); // Cod aeroport plecare
-    final String to = _toController.text.trim(); // Cod aeroport sosire
+    final String from = _fromController.text.trim();
+    final String to = _toController.text.trim();
     final String departureDate = _departureDateController.text.trim();
     final String returnDate = _returnDateController.text.trim();
 
-    // Verifică dacă toate câmpurile sunt completate
     if (from.isEmpty || to.isEmpty || departureDate.isEmpty || returnDate.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all fields.'),
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please fill in all fields.'),
+      ));
       return;
     }
 
-    const String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
-    final String apiUrl = 'https://serpapi.com/search.json?engine=google_flights&departure_id=$from&arrival_id=$to&outbound_date=$departureDate&return_date=$returnDate&currency=USD&hl=en&api_key=$apiKey';
+    // Verifică dacă 'from' este un cod IATA valid
+    final String? fromCode = isIataCode(from) ? from : await apiService.getAirportCodeByCity(from);
+    final String? toCode = isIataCode(to) ? to : await apiService.getAirportCodeByCity(to);
+
+    if (fromCode == null || toCode == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not find airport codes for the cities entered.'),
+      ));
+      return;
+    }
+
+    print("From Code: $fromCode");
+    print("To Code: $toCode");
+
+    final String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
+
+    // Construirea URL-ului pentru căutarea zborurilor
+    final String apiUrl =
+        'https://serpapi.com/search.json?engine=google_flights&departure_id=$fromCode&arrival_id=$toCode&outbound_date=$departureDate&return_date=$returnDate&currency=USD&hl=en&api_key=$apiKey';
 
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
       if (response.statusCode == 200) {
-        // Afișează în consolă răspunsul JSON
-        print('Response JSON: ${response.body}');
-
         final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
 
-        // Verificăm dacă există zboruri în `other_flights`
         if (jsonResponse.containsKey('other_flights') && jsonResponse['other_flights'] is List) {
           final List<dynamic> otherFlights = jsonResponse['other_flights'];
 
           if (otherFlights.isNotEmpty) {
             final List<Flight> extractedFlights = [];
 
-            // Extragem datele de zbor din fiecare grup de zboruri din `other_flights`
             for (var flightGroup in otherFlights) {
               if (flightGroup.containsKey('flights') && flightGroup['flights'] is List) {
                 final flightsList = flightGroup['flights'];
@@ -68,8 +84,16 @@ class _HomePageState extends State<HomePage> {
             }
 
             setState(() {
-              flights = extractedFlights; // Stocăm zborurile extrase
+              flights = extractedFlights;
             });
+
+            // Navigăm către FlightResultsPage și trimitem lista de zboruri
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FlightResultsPage(flights: flights),
+              ),
+            );
           }
         }
       } else {
@@ -78,9 +102,7 @@ class _HomePageState extends State<HomePage> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -98,7 +120,6 @@ class _HomePageState extends State<HomePage> {
     );
 
     if (pickedDate != null) {
-      // Formatează data într-un format ușor de utilizat (YYYY-MM-DD)
       final String formattedDate = "${pickedDate.toLocal()}".split(' ')[0];
       controller.text = formattedDate;
     }
@@ -163,7 +184,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                             filled: true,
                             fillColor: Colors.white,
-                            contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 15), // Dimensiuni reduse
+                            contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -176,7 +197,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                             filled: true,
                             fillColor: Colors.white,
-                            contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 15), // Dimensiuni reduse
+                            contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -192,7 +213,7 @@ class _HomePageState extends State<HomePage> {
                                 ),
                                 filled: true,
                                 fillColor: Colors.white,
-                                contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 15), // Dimensiuni reduse
+                                contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                               ),
                             ),
                           ),
@@ -210,7 +231,7 @@ class _HomePageState extends State<HomePage> {
                                 ),
                                 filled: true,
                                 fillColor: Colors.white,
-                                contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 15), // Dimensiuni reduse
+                                contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 15),
                               ),
                             ),
                           ),
@@ -219,29 +240,6 @@ class _HomePageState extends State<HomePage> {
                         ElevatedButton(
                           onPressed: searchFlights,
                           child: const Text('Search Flights'),
-                        ),
-                        const SizedBox(height: 20),
-                        Expanded(
-                          child: flights.isEmpty
-                              ? const Center(child: Text('No flights found.'))
-                              : ListView.builder(
-                            itemCount: flights.length,
-                            itemBuilder: (context, index) {
-                              final flight = flights[index];
-                              return Card(
-                                margin: const EdgeInsets.symmetric(vertical: 8),
-                                child: ListTile(
-                                  title: Text('Flight: ${flight.flightNumber}'),
-                                  subtitle: Text(
-                                    'From: ${flight.departureAirport.name} (${flight.departureAirport.id})\n'
-                                        'To: ${flight.arrivalAirport.name} (${flight.arrivalAirport.id})\n'
-                                        'Price: \$${flight.price}\n'
-                                        'Duration: ${flight.duration} minutes',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
                         ),
                       ],
                     ),

@@ -40,22 +40,27 @@ class _SignOutPageState extends State<SignOutPage> {
         },
       );
 
-
+      // Verifică dacă răspunsul este de tip JSON
       if (response.statusCode == 200) {
-        final userData = jsonDecode(response.body);
-        print('User Data: $userData');
-        setState(() {
-          _userData = userData;
-          _isLoading = false;
-        });
+        try {
+          final userData = jsonDecode(response.body);
+          print('User Data: $userData');
+          setState(() {
+            _userData = userData;
+            _isLoading = false;
+          });
+        } catch (e) {
+          print('Error decoding JSON: $e');
+          print('Response body: ${response.body}');
+        }
       } else {
-        print('Failed to load user data: ${response.body}');
+        print('Failed to load user data: ${response.statusCode}');
+        print('Response body: ${response.body}'); // Afișează conținutul complet al răspunsului
       }
     } catch (e) {
       print('Error fetching user data: $e');
     }
   }
-
 
   @override
   Widget build(BuildContext context) {

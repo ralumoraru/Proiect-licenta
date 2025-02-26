@@ -177,6 +177,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
@@ -184,57 +185,56 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(30.0),
-                bottomRight: Radius.circular(30.0),
-              ),
-              child: Image.asset(
-                'assets/images/airplane.jpg',
-                width: screenWidth,
-                height: 200,
-                fit: BoxFit.cover,
+      body: Container(
+        height: screenHeight,
+        child: Stack(
+          children: [
+            // Imaginea de fundal
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(30.0),
+                  bottomRight: Radius.circular(30.0),
+                ),
+                child: Image.asset(
+                  'assets/images/airplane.jpg',
+                  width: screenWidth,
+                  height: screenHeight * 0.35,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          ),
-          Positioned(
-            top: 150,
-            left: 0,
-            right: 0,
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: screenWidth * 0.05,
-                vertical: screenHeight * 0.02,
-              ),
-              child: Material(
-                elevation: 4,
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  height: screenHeight * 0.65,  // Am micșorat dimensiunea containerului
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        offset: Offset(0, 4),
-                        blurRadius: 10,
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(screenWidth * 0.04), // Ajustez padding-ul
+
+            // Containerul alb cu formularul
+            Positioned(
+              top: screenHeight * 0.20, // Am ridicat formularul cu 0.08 față de 0.28
+              left: screenWidth * 0.05,
+              right: screenWidth * 0.05,
+              child: SingleChildScrollView(
+                child: Material(
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: EdgeInsets.all(screenWidth * 0.05),
+                    width: screenWidth * 0.9,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          offset: Offset(0, 4),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Row cu butoane
+                        // Butoane One-Way și Return
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -246,18 +246,18 @@ class _HomePageState extends State<HomePage> {
                                     _returnDateController.clear();
                                   });
                                 },
-                                child: const Text('One-way'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: !isReturnFlight ? Colors.blue : Colors.grey,
+                                  backgroundColor: !isReturnFlight
+                                      ? Colors.lightBlueAccent
+                                      : Colors.grey,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  padding: EdgeInsets.symmetric(vertical: 12), // Mărimea butonului
-                                  textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                 ),
+                                child: const Text('One-way'),
                               ),
                             ),
-                            const SizedBox(width: 8),  // Spațiu între butoane
+                            const SizedBox(width: 8),
                             Expanded(
                               child: ElevatedButton(
                                 onPressed: () {
@@ -265,108 +265,46 @@ class _HomePageState extends State<HomePage> {
                                     isReturnFlight = true;
                                   });
                                 },
-                                child: const Text('Return'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isReturnFlight ? Colors.blue : Colors.grey,
+                                  backgroundColor: isReturnFlight
+                                      ? Colors.lightBlueAccent
+                                      : Colors.grey,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  padding: EdgeInsets.symmetric(vertical: 12), // Mărimea butonului
-                                  textStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                 ),
+                                child: const Text('Return'),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16), // Spațiu între butoane și câmpurile de text
-                        TextField(
-                          controller: _fromController,
-                          decoration: InputDecoration(
-                            labelText: 'From',
-                            labelStyle: TextStyle(color: Colors.grey),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16.0),  // Dimensiune mai mică
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey[100],
-                            contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16.0),
-                              borderSide: BorderSide(color: Colors.blue, width: 2),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),  // Mică distanță între câmpuri
-                        TextField(
-                          controller: _toController,
-                          decoration: InputDecoration(
-                            labelText: 'To',
-                            labelStyle: TextStyle(color: Colors.grey),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16.0),  // Dimensiune mai mică
-                            ),
-                            filled: true,
-                            fillColor: Colors.grey[100],
-                            contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16.0),
-                              borderSide: BorderSide(color: Colors.blue, width: 2),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),  // Mică distanță între câmpuri
-                        GestureDetector(
-                          onTap: () => _selectDate(context, _departureDateController),
-                          child: AbsorbPointer(
-                            child: TextField(
-                              controller: _departureDateController,
-                              decoration: InputDecoration(
-                                labelText: 'Departure Date',
-                                labelStyle: TextStyle(color: Colors.grey),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16.0),  // Dimensiune mai mică
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey[100],
-                                contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16.0),
-                                  borderSide: BorderSide(color: Colors.blue, width: 2),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),  // Mică distanță între câmpuri
+                        const SizedBox(height: 16),
+
+                        // Câmpuri de introducere a datelor
+                        _buildTextField(_fromController, 'From', Icons.flight_takeoff),
+                        _buildTextField(_toController, 'To', Icons.flight_land),
+                        _buildDateField(_departureDateController, 'Departure Date'),
                         if (isReturnFlight)
-                          GestureDetector(
-                            onTap: () => _selectDate(context, _returnDateController),
-                            child: AbsorbPointer(
-                              child: TextField(
-                                controller: _returnDateController,
-                                decoration: InputDecoration(
-                                  labelText: 'Return Date',
-                                  labelStyle: TextStyle(color: Colors.grey),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16.0),  // Dimensiune mai mică
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.grey[100],
-                                  contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16.0),
-                                    borderSide: BorderSide(color: Colors.blue, width: 2),
-                                  ),
-                                ),
-                              ),
+                          _buildDateField(_returnDateController, 'Return Date'),
 
-                            ),
-
-                          ),
                         const SizedBox(height: 20),
-                        ElevatedButton(
+
+                        Center(
+                        child: ElevatedButton(
                           onPressed: searchFlights,
-                          child: const Text('Search Flights'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.lightBlueAccent,
+                            padding:
+                            const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text(
+                            'Search Flights',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                         ),
                       ],
                     ),
@@ -374,11 +312,42 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+// Funcția _buildTextField modificată pentru a reduce înălțimea câmpurilor
+  Widget _buildTextField(TextEditingController controller, String hint, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),  // Micșorăm padding-ul vertical pentru a reduce înălțimea câmpului
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: hint,
+          prefixIcon: Icon(icon, color: Colors.blueAccent),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ],
+          filled: true,
+          fillColor: Colors.grey[100],
+          contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),  // Redu padding-ul interior pentru câmpuri mai mici
+        ),
+      ),
+    );
+  }
+
+// Modifică funcția _buildDateField pentru a păstra consistența stilului
+  Widget _buildDateField(TextEditingController controller, String label) {
+    return GestureDetector(
+      onTap: () => _selectDate(context, controller),
+      child: AbsorbPointer(
+        child: _buildTextField(controller, label, Icons.date_range),
       ),
     );
   }
 }
+
 
 

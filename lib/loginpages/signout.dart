@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../FlightHistoryPage.dart';
 
 class SignOutPage extends StatefulWidget {
   const SignOutPage({super.key});
@@ -85,6 +86,18 @@ class _SignOutPageState extends State<SignOutPage> {
             Text('Email: ${_userData?['email'] ?? "No email available"}',
                 style: const TextStyle(fontSize: 18)),
             const SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const FlightHistoryPage()),
+                );
+              },
+              child: const Text(
+                'Search Flight History',
+                style: TextStyle(fontSize: 16, color: Colors.blue),
+              ),
+            ),
             ElevatedButton(
               onPressed: () async {
                 await FirebaseAuth.instance.signOut();

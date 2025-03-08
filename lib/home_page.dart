@@ -31,7 +31,8 @@ class _HomePageState extends State<HomePage> {
   bool isReturnFlight = true;
 
   Future<bool> saveSearchHistory(String from, String to, String departureDate,
-      String? returnDate) async {
+      String? returnDate) async
+  {
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
 
@@ -78,14 +79,13 @@ class _HomePageState extends State<HomePage> {
     final String departureDate = _departureDateController.text.trim();
     final String returnDate = _returnDateController.text.trim();
 
-    if (from.isEmpty || to.isEmpty || departureDate.isEmpty ||
-        returnDate.isEmpty) {
+    if (from.isEmpty || to.isEmpty || departureDate.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please fill in all required fields.'),
+        content: Text(
+            'Please fill in all required fields.'),
       ));
       return;
     }
-
     final String? fromCode = isIataCode(from) ? from : await apiService
         .getAirportCodeByCity(from);
     final String? toCode = isIataCode(to) ? to : await apiService
@@ -98,53 +98,56 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    final String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
 
-    final String apiUrl =
-        'https://serpapi.com/search.json?engine=google_flights&departure_id=$fromCode&arrival_id=$toCode&outbound_date=$departureDate&return_date=$returnDate&currency=USD&hl=en&api_key=$apiKey';
+    // Continuăm căutarea zborurilor
+    final String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
+    final int flightType = isReturnFlight ? 1 : 2;
+
+    String apiUrl = 'https://serpapi.com/search.json?'
+        'engine=google_flights'
+        '&departure_id=$fromCode'
+        '&arrival_id=$toCode'
+        '&outbound_date=$departureDate'
+        '&currency=RON'
+        '&hl=en'
+        '&api_key=$apiKey'
+        '&type=$flightType';
+
+    if (isReturnFlight) {
+      apiUrl += '&return_date=$returnDate';
+    }
 
     try {
       final response = await http.get(Uri.parse(apiUrl));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+        final List<Flight> extractedFlights = [];
 
-        // Afișează răspunsul complet pentru a-l inspecta
-        print("Response body: ${response.body}");
-
-        // Verifică și procesul de extragere a zborurilor
-        if (jsonResponse.containsKey('other_flights') &&
-            jsonResponse['other_flights'] is List) {
-          final List<dynamic> otherFlights = jsonResponse['other_flights'];
-
-          if (otherFlights.isNotEmpty) {
-            final List<Flight> extractedFlights = [];
-            for (var flightGroup in otherFlights) {
-              if (flightGroup.containsKey('flights') &&
-                  flightGroup['flights'] is List) {
-                final flightsList = flightGroup['flights'];
-                for (var flightJson in flightsList) {
-                  extractedFlights.add(Flight.fromJson(flightJson));
-                }
+        if (jsonResponse.containsKey('best_flights') &&
+            jsonResponse['best_flights'] is List) {
+          final List<dynamic> bestFlights = jsonResponse['best_flights'];
+          for (var flightGroup in bestFlights) {
+            if (flightGroup.containsKey('flights') &&
+                flightGroup['flights'] is List) {
+              final flightsList = flightGroup['flights'];
+              for (var flightJson in flightsList) {
+                extractedFlights.add(Flight.fromJson(flightJson));
               }
             }
-
-            setState(() {
-              flights = extractedFlights;
-            });
-
-            // Salvează istoricul căutării
-            await saveSearchHistory(from, to, departureDate,
-                returnDate.isNotEmpty ? returnDate : null);
-
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => FlightResultsPage(flights: flights),
-              ),
-            );
           }
         }
+
+        setState(() {
+          flights = extractedFlights;
+        });
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FlightResultsPage(flights: flights),
+          ),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${response.body}')),
@@ -156,10 +159,10 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-
   // Funcție pentru a selecta o dată
   Future<void> _selectDate(BuildContext context,
-      TextEditingController controller) async {
+      TextEditingController controller) async
+  {
     final DateTime initialDate = DateTime.now();
     final DateTime firstDate = DateTime(2000);
     final DateTime lastDate = DateTime(2101);
@@ -180,8 +183,14 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final double screenHeight = MediaQuery.of(context).size.height;
-    final double screenWidth = MediaQuery.of(context).size.width;
+    final double screenHeight = MediaQuery
+        .of(context)
+        .size
+        .height;
+    final double screenWidth = MediaQuery
+        .of(context)
+        .size
+        .width;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -210,7 +219,8 @@ class _HomePageState extends State<HomePage> {
 
             // Containerul alb cu formularul
             Positioned(
-              top: screenHeight * 0.20, // Am ridicat formularul cu 0.08 față de 0.28
+              top: screenHeight * 0.20,
+              // Am ridicat formularul cu 0.08 față de 0.28
               left: screenWidth * 0.05,
               right: screenWidth * 0.05,
               child: SingleChildScrollView(
@@ -280,31 +290,35 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Câmpuri de introducere a datelor
-                        _buildTextField(_fromController, 'From', Icons.flight_takeoff),
-                        _buildTextField(_toController, 'To', Icons.flight_land),
-                        _buildDateField(_departureDateController, 'Departure Date'),
+                        _buildAutocompleteField(
+                            _fromController, 'From', Icons.flight_takeoff),
+                        _buildAutocompleteField(
+                            _toController, 'To', Icons.flight_land),
+                        _buildDateField(
+                            _departureDateController, 'Departure Date'),
                         if (isReturnFlight)
                           _buildDateField(_returnDateController, 'Return Date'),
 
                         const SizedBox(height: 20),
 
                         Center(
-                        child: ElevatedButton(
-                          onPressed: searchFlights,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.lightBlueAccent,
-                            padding:
-                            const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
+                          child: ElevatedButton(
+                            onPressed: searchFlights,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.lightBlueAccent,
+                              padding:
+                              const EdgeInsets.symmetric(
+                                  vertical: 10, horizontal: 30),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: const Text(
+                              'Search Flights',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.bold),
                             ),
                           ),
-                          child: const Text(
-                            'Search Flights',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                          ),
-                        ),
                         ),
                       ],
                     ),
@@ -318,32 +332,65 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-// Funcția _buildTextField modificată pentru a reduce înălțimea câmpurilor
-  Widget _buildTextField(TextEditingController controller, String hint, IconData icon) {
+  Widget _buildAutocompleteField(TextEditingController controller, String hint,
+      IconData icon) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),  // Micșorăm padding-ul vertical pentru a reduce înălțimea câmpului
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Autocomplete<String>(
+        optionsBuilder: (TextEditingValue textEditingValue) async {
+          if (textEditingValue.text.isEmpty) {
+            return const Iterable<String>.empty();
+          }
+          return await apiService.getAirportsForCity(textEditingValue.text);
+        },
+        onSelected: (String selection) {
+          controller.text = selection;
+        },
+
+
+        fieldViewBuilder: (BuildContext context,
+            TextEditingController textEditingController, FocusNode focusNode,
+            VoidCallback onFieldSubmitted) {
+          return TextField(
+            controller: textEditingController,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              labelText: hint,
+              prefixIcon: Icon(icon, color: Colors.blueAccent),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              filled: true,
+              fillColor: Colors.grey[100],
+              contentPadding: EdgeInsets.symmetric(
+                  vertical: 8.0, horizontal: 12.0),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+
+  Widget _buildDateField(TextEditingController controller, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextField(
         controller: controller,
+        readOnly: true,
+        // Previne editarea manuală
+        onTap: () => _selectDate(context, controller),
+        // Deschide selectorul de dată
         decoration: InputDecoration(
-          labelText: hint,
-          prefixIcon: Icon(icon, color: Colors.blueAccent),
+          labelText: label,
+          prefixIcon: Icon(Icons.date_range, color: Colors.blueAccent),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           filled: true,
           fillColor: Colors.grey[100],
-          contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),  // Redu padding-ul interior pentru câmpuri mai mici
+          contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
         ),
-      ),
-    );
-  }
-
-// Modifică funcția _buildDateField pentru a păstra consistența stilului
-  Widget _buildDateField(TextEditingController controller, String label) {
-    return GestureDetector(
-      onTap: () => _selectDate(context, controller),
-      child: AbsorbPointer(
-        child: _buildTextField(controller, label, Icons.date_range),
       ),
     );
   }

@@ -2,41 +2,38 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class ApiService {
-  final String baseUrl = 'https://viable-flamingo-advanced.ngrok-free.app/api/iata-code'; // URL-ul API-ului tău
+  final String baseUrl = 'https://viable-flamingo-advanced.ngrok-free.app/api';
 
   Future<String?> getAirportCodeByCity(String cityName) async {
-    final response = await http.get(Uri.parse('$baseUrl?city=$cityName'));
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/iata-code?city=$cityName'));
 
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}');  // Afișează răspunsul complet
-
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      if (data.containsKey('iata_code')) {
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
         return data['iata_code'];
       } else {
-        print('No iata_code in response');
+        print(' Error ${response.statusCode}: ${response.body}');
       }
-    } else {
-      print('Error: ${response.statusCode}');
+    } catch (e) {
+      print(' Exception while fetching IATA code: $e');
     }
-
-    return null;  // Dacă nu găsește niciun iata_code, returnează null
+    return null;
   }
 
+  Future<List<String>> getAirportsForCity(String cityName) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/airport-for-city?city=$cityName'));
 
-
-  // Funcție pentru a obține iata_code direct
-  Future<String?> getAirportCodeDirectly(String iataCode) async {
-    final response = await http.get(Uri.parse('$baseUrl?iata_code=$iataCode'));
-
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      if (data.containsKey('iata_code')) {
-        return data['iata_code'];
+      if (response.statusCode == 200) {
+        final List<dynamic> airports = jsonDecode(response.body);
+        return airports.map((airport) => airport['airport_name'] as String).toList();
+      } else {
+        print(' Error fetching airports for $cityName: ${response.statusCode}');
       }
+    } catch (e) {
+      print(' Exception while fetching airports for $cityName: $e');
     }
-
-    return null;  // Dacă nu găsește niciun iata_code, returnează null
+    return [];
   }
+
 }

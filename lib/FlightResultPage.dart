@@ -97,6 +97,7 @@ class FlightResultsPage extends StatelessWidget {
           );
         },
       ),
+
     );
   }
 }

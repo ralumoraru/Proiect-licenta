@@ -1,3 +1,5 @@
+import 'package:flight_ticket_checker/FlightHistoryPage.dart';
+import 'package:flight_ticket_checker/FlightResultPage.dart';
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
@@ -27,6 +29,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
         ),
       ),
       const SignOutPage(), // Add the sign-out page here
+
     ];
 
     return Scaffold(

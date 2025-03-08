@@ -23,8 +23,8 @@ class Flight {
       departureAirport: Airport.fromJson(json['departure_airport']),
       arrivalAirport: Airport.fromJson(json['arrival_airport']),
       duration: json['duration'] ?? 0,
-      price: json['price'] ?? 0,
-      stops: json['stops'] ?? 0
+        price: json["price"] != null ? int.tryParse(json['price'].toString()) ?? 0 : 0,
+        stops: json['stops'] ?? 0
     );
   }
 }

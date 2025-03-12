@@ -154,10 +154,11 @@ class _SignOutPageState extends State<SignOutPage> {
     String userInitial = _userData?['name'] != null ? _userData!['name'][0].toUpperCase() : 'U';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('User Profile')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+        appBar: AppBar(title: const Text('User Profile')),
+    body: SingleChildScrollView(
+     child: Padding(
+       padding: const EdgeInsets.all(16.0),
+       child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -243,6 +244,7 @@ class _SignOutPageState extends State<SignOutPage> {
           ],
         ),
       ),
+    ),
     );
   }
 }

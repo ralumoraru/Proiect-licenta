@@ -16,12 +16,28 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final TextEditingController _fromController = TextEditingController();
-  final TextEditingController _toController = TextEditingController();
-  final TextEditingController _departureDateController = TextEditingController();
-  final TextEditingController _returnDateController = TextEditingController();
+   TextEditingController _fromController = TextEditingController();
+   TextEditingController _toController = TextEditingController();
+   TextEditingController _departureDateController = TextEditingController();
+   TextEditingController _returnDateController = TextEditingController();
+   bool showSwitchButton = false;
 
-  List<Flight> flights = [];
+   @override
+   void initState() {
+     super.initState();
+
+     _fromController.addListener(_updateSwitchButtonVisibility);
+     _toController.addListener(_updateSwitchButtonVisibility);
+   }
+
+   void _updateSwitchButtonVisibility() {
+     setState(() {
+       showSwitchButton = _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
+     });
+   }
+
+
+   List<Flight> flights = [];
   final ApiService apiService = ApiService(); // Instanțiază serviciul API
 
   bool isIataCode(String input) {
@@ -73,93 +89,102 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> searchFlights() async {
-    final String from = _fromController.text.trim();
-    final String to = _toController.text.trim();
-    final String departureDate = _departureDateController.text.trim();
-    final String returnDate = _returnDateController.text.trim();
+   Future<void> searchFlights() async {
+     String from = _fromController.text.trim();
+     String to = _toController.text.trim();
+     String departureDate = _departureDateController.text.trim();
+     String returnDate = _returnDateController.text.trim();
 
-    if (from.isEmpty || to.isEmpty || departureDate.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Please fill in all required fields.'),
-      ));
-      return;
-    }
-    final String? fromCode = isIataCode(from) ? from : await apiService
-        .getAirportCodeByCity(from);
-    final String? toCode = isIataCode(to) ? to : await apiService
-        .getAirportCodeByCity(to);
+     if (from.isEmpty || to.isEmpty || departureDate.isEmpty) {
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+         content: Text('Please fill in all required fields.'),
+       ));
+       return;
+     }
 
-    if (fromCode == null || toCode == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Could not find airport codes for the cities entered.'),
-      ));
-      return;
-    }
+     String? fromCode = isIataCode(from) ? from : await apiService.getAirportCodeByCity(from);
+     String? toCode = isIataCode(to) ? to : await apiService.getAirportCodeByCity(to);
+
+     if (fromCode == null || toCode == null) {
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+         content: Text('Could not find airport codes for the cities entered.'),
+       ));
+       return;
+     }
+
+     String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
+     int flightType = isReturnFlight ? 1 : 2;
+
+     String apiUrl = 'https://serpapi.com/search.json?'
+         'engine=google_flights'
+         '&departure_id=$fromCode'
+         '&arrival_id=$toCode'
+         '&outbound_date=$departureDate'
+         '&currency=RON'
+         '&hl=en'
+         '&api_key=$apiKey'
+         '&type=$flightType';
+
+     if (isReturnFlight) {
+       apiUrl += '&return_date=$returnDate';
+     }
+
+     try {
+       final response = await http.get(Uri.parse(apiUrl));
+       if (response.statusCode == 200) {
+
+         final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+
+         if (jsonResponse.containsKey('best_flights')) {
+           print('Best flights: ${jsonResponse['best_flights']}');
+         } else {
+           print('No best flights data found.');
+         }
+
+         final List<Flight> extractedFlights = [];
+
+         if (jsonResponse.containsKey('best_flights') && jsonResponse['best_flights'] is List) {
+           List<dynamic> bestFlights = jsonResponse['best_flights'];
+           for (var flightGroup in bestFlights) {
+             if (flightGroup.containsKey('flights') && flightGroup['flights'] is List) {
+               final flightsList = flightGroup['flights'];
+               for (var flightJson in flightsList) {
+                 extractedFlights.add(Flight.fromJson(flightJson));
+               }
+             }
+           }
+         }
+
+         // Dacă există zboruri, actualizează starea și navighează la pagina de rezultate
+         if (extractedFlights.isNotEmpty) {
+           setState(() {
+             flights = extractedFlights;
+           });
+
+           Navigator.push(
+             context,
+             MaterialPageRoute(
+               builder: (context) => FlightResultsPage(flights: flights),
+             ),
+           );
+         } else {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+             content: Text('No flights found for the selected dates.'),
+           ));
+         }
+       } else {
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Error: ${response.body}')),
+         );
+       }
+     } catch (e) {
+       ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Error: $e')));
+     }
+   }
 
 
-    // Continuăm căutarea zborurilor
-    final String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
-    final int flightType = isReturnFlight ? 1 : 2;
-
-    String apiUrl = 'https://serpapi.com/search.json?'
-        'engine=google_flights'
-        '&departure_id=$fromCode'
-        '&arrival_id=$toCode'
-        '&outbound_date=$departureDate'
-        '&currency=RON'
-        '&hl=en'
-        '&api_key=$apiKey'
-        '&type=$flightType';
-
-    if (isReturnFlight) {
-      apiUrl += '&return_date=$returnDate';
-    }
-
-    try {
-      final response = await http.get(Uri.parse(apiUrl));
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-        final List<Flight> extractedFlights = [];
-
-        if (jsonResponse.containsKey('best_flights') &&
-            jsonResponse['best_flights'] is List) {
-          final List<dynamic> bestFlights = jsonResponse['best_flights'];
-          for (var flightGroup in bestFlights) {
-            if (flightGroup.containsKey('flights') &&
-                flightGroup['flights'] is List) {
-              final flightsList = flightGroup['flights'];
-              for (var flightJson in flightsList) {
-                extractedFlights.add(Flight.fromJson(flightJson));
-              }
-            }
-          }
-        }
-
-        setState(() {
-          flights = extractedFlights;
-        });
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => FlightResultsPage(flights: flights),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${response.body}')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')));
-    }
-  }
-
-  // Funcție pentru a selecta o dată
+   // Funcție pentru a selecta o dată
   Future<void> _selectDate(BuildContext context,
       TextEditingController controller) async
   {
@@ -288,12 +313,57 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        Stack(
+                          alignment: Alignment.centerLeft,
+                         children: [
+                           Column(
+                            children: [
+                             _buildAutocompleteField(
+                                 _fromController, 'From', Icons.flight_takeoff),
+                             const SizedBox(height: 10),
+                              _buildAutocompleteField(
+                                  _toController, 'To', Icons.flight_land),
 
-                        _buildAutocompleteField(
-                            _fromController, 'From', Icons.flight_takeoff),
-                        _buildAutocompleteField(
-                            _toController, 'To', Icons.flight_land),
+                         ],
+                    ),
+                           if (showSwitchButton)
+                           Positioned(
+                             top: 50, // Ajustează pentru poziția dorită
+                             child: Container(
+                               decoration: BoxDecoration(
+                                 shape: BoxShape.circle,
+                                 color: Colors.blueAccent, // Fundal albastru pentru buton
+                                 boxShadow: [
+                                   BoxShadow(
+                                     color: Colors.black.withOpacity(0.2),
+                                     blurRadius: 5,
+                                     offset: Offset(0, 3),
+                                   ),
+                                 ],
+                               ),
+                               child: IconButton(
+                                 icon: const Icon(Icons.swap_vert, color: Colors.white),
+                                 onPressed: () {
+                                   setState(() {
+                                     // Salvăm valorile actuale
+                                     String tempFrom = _fromController.text;
+                                     String tempTo = _toController.text;
+
+                                     print('From: $tempFrom');
+                                     print('To: $tempTo');
+
+                                     // Setăm textul interschimbat
+                                     _fromController.text = tempTo;
+                                     _toController.text = tempFrom;
+
+                                   });
+                                 },
+                               ),
+                             ),
+                             ),
+                         ],
+                        ),
+
                         _buildDateField(
                             _departureDateController, 'Departure Date'),
                         if (isReturnFlight)
@@ -344,7 +414,9 @@ class _HomePageState extends State<HomePage> {
           return await apiService.getAirportsForCity(textEditingValue.text);
         },
         onSelected: (String selection) {
-          controller.text = selection;
+          setState(() {
+            controller.text = selection;
+          });
         },
 
 

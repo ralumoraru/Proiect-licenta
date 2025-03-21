@@ -149,9 +149,9 @@ class _SignOutPageState extends State<SignOutPage> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-
-    // Avatar cu inițiala utilizatorului
-    String userInitial = _userData?['name'] != null ? _userData!['name'][0].toUpperCase() : 'U';
+    String userInitial = (_userData?['name'] != null && _userData!['name'].isNotEmpty)
+        ? _userData!['name'][0].toUpperCase()
+        : 'U';
 
     return Scaffold(
         appBar: AppBar(title: const Text('User Profile')),
@@ -193,25 +193,6 @@ class _SignOutPageState extends State<SignOutPage> {
                         style: const TextStyle(fontSize: 16)),
                   ],
                 ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // TextButton pentru vizualizarea istoriei zborurilor
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const FlightHistoryPage()),
-                );
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.blueAccent, padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-              ),
-              child: const Text(
-                'Search Flight History',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
 

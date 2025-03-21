@@ -3,6 +3,7 @@ import 'home_page.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 
 import 'loginpages/signout.dart';
+import 'FlightHistoryPage.dart';
 
 class AppNavigationBar extends StatefulWidget {
   const AppNavigationBar({super.key});
@@ -20,12 +21,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
 
     final List<Widget> pages = <Widget>[
       const HomePage(title: 'Home Page'),
-      Center(
-        child: Text(
-          'Search Page',
-          style: theme.textTheme.titleLarge,
-        ),
-      ),
+      const FlightHistoryPage(),
       const SignOutPage(), // Add the sign-out page here
 
     ];
@@ -36,7 +32,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
         height: 50.0,
         items: const <Widget>[
           Icon(Icons.home, size: 30, color: Colors.white),
-          Icon(Icons.search, size: 30, color: Colors.white),
+          Icon(Icons.flight_outlined, size: 30, color: Colors.white),
           Icon(Icons.exit_to_app, size: 30, color: Colors.white), // Sign-out button icon
         ],
         color: Colors.lightBlue,

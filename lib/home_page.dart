@@ -5,7 +5,9 @@ import 'dart:convert';
 
 import 'Flights/Flight.dart';
 import 'FlightResultPage.dart'; // Importăm noua pagină
+import 'Flights/FlightItinerary.dart';
 import 'IATACodeAPI.dart';
+import 'FlightSearchPage.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -16,28 +18,31 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-   TextEditingController _fromController = TextEditingController();
-   TextEditingController _toController = TextEditingController();
-   TextEditingController _departureDateController = TextEditingController();
-   TextEditingController _returnDateController = TextEditingController();
-   bool showSwitchButton = false;
-
-   @override
-   void initState() {
-     super.initState();
-
-     _fromController.addListener(_updateSwitchButtonVisibility);
-     _toController.addListener(_updateSwitchButtonVisibility);
-   }
-
-   void _updateSwitchButtonVisibility() {
-     setState(() {
-       showSwitchButton = _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
-     });
-   }
+  TextEditingController _fromController = TextEditingController();
+  TextEditingController _toController = TextEditingController();
+  TextEditingController _departureDateController = TextEditingController();
+  TextEditingController _returnDateController = TextEditingController();
+  bool showSwitchButton = false;
 
 
-   List<Flight> flights = [];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _fromController.addListener(_updateSwitchButtonVisibility);
+    _toController.addListener(_updateSwitchButtonVisibility);
+  }
+
+  void _updateSwitchButtonVisibility() {
+    setState(() {
+      showSwitchButton =
+          _fromController.text.isNotEmpty && _toController.text.isNotEmpty;
+    });
+  }
+
+
+  List<Flight> flights = [];
   final ApiService apiService = ApiService(); // Instanțiază serviciul API
 
   bool isIataCode(String input) {
@@ -45,6 +50,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   bool isReturnFlight = true;
+
 
   Future<bool> saveSearchHistory(String from, String to, String departureDate,
       String? returnDate) async
@@ -89,121 +95,56 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-   Future<void> searchFlights() async {
-     String from = _fromController.text.trim();
-     String to = _toController.text.trim();
-     String departureDate = _departureDateController.text.trim();
-     String returnDate = _returnDateController.text.trim();
+  Future<void> searchFlights() async {
+    String from = _fromController.text.trim();
+    String to = _toController.text.trim();
+    String departureDate = _departureDateController.text.trim();
+    String returnDate = _returnDateController.text.trim();
 
-     if (from.isEmpty || to.isEmpty || departureDate.isEmpty) {
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-         content: Text('Please fill in all required fields.'),
-       ));
-       return;
-     }
+    if (from.isEmpty || to.isEmpty || departureDate.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please fill in all required fields.'),
+      ));
+      return;
+    }
 
-     String? fromCode = isIataCode(from) ? from : await apiService.getAirportCodeByCity(from);
-     String? toCode = isIataCode(to) ? to : await apiService.getAirportCodeByCity(to);
+    try {
+      // Use the FlightSearchService to fetch the flight itineraries
+      FlightSearchService flightSearchService = FlightSearchService();
+      List<FlightItinerary> itineraries = await flightSearchService.searchFlights(
+        from: from,
+        to: to,
+        departureDate: departureDate,
+        returnDate: returnDate,
+        isReturnFlight: isReturnFlight,
+      );
 
-     if (fromCode == null || toCode == null) {
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-         content: Text('Could not find airport codes for the cities entered.'),
-       ));
-       return;
-     }
+      // În funcția searchFlights
+      if (itineraries.isNotEmpty) {
+        // Salvează istoricul căutării
+        await saveSearchHistory(from, to, departureDate, returnDate);
 
-     String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
-     int flightType = isReturnFlight ? 1 : 2;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => FlightResultsPage(itineraries: itineraries),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No flights found for the selected dates.'),
+          ),
+        );
+      }
 
-     String apiUrl = 'https://serpapi.com/search.json?'
-         'engine=google_flights'
-         '&departure_id=$fromCode'
-         '&arrival_id=$toCode'
-         '&outbound_date=$departureDate'
-         '&currency=RON'
-         '&hl=en'
-         '&api_key=$apiKey'
-         '&type=$flightType';
-
-     if (isReturnFlight) {
-       apiUrl += '&return_date=$returnDate';
-     }
-
-     try {
-       final response = await http.get(Uri.parse(apiUrl));
-       if (response.statusCode == 200) {
-
-         final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-
-         if (jsonResponse.containsKey('best_flights')) {
-           print('Best flights: ${jsonResponse['best_flights']}');
-         } else {
-           print('No best flights data found.');
-         }
-
-         final List<Flight> extractedFlights = [];
-
-         if (jsonResponse.containsKey('best_flights') && jsonResponse['best_flights'] is List) {
-           List<dynamic> bestFlights = jsonResponse['best_flights'];
-           for (var flightGroup in bestFlights) {
-             if (flightGroup.containsKey('flights') && flightGroup['flights'] is List) {
-               final flightsList = flightGroup['flights'];
-               for (var flightJson in flightsList) {
-                 extractedFlights.add(Flight.fromJson(flightJson));
-               }
-             }
-           }
-         }
-
-         // Dacă există zboruri, actualizează starea și navighează la pagina de rezultate
-         if (extractedFlights.isNotEmpty) {
-           setState(() {
-             flights = extractedFlights;
-           });
-
-           Navigator.push(
-             context,
-             MaterialPageRoute(
-               builder: (context) => FlightResultsPage(flights: flights),
-             ),
-           );
-         } else {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-             content: Text('No flights found for the selected dates.'),
-           ));
-         }
-       } else {
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text('Error: ${response.body}')),
-         );
-       }
-     } catch (e) {
-       ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text('Error: $e')));
-     }
-   }
-
-
-   // Funcție pentru a selecta o dată
-  Future<void> _selectDate(BuildContext context,
-      TextEditingController controller) async
-  {
-    final DateTime initialDate = DateTime.now();
-    final DateTime firstDate = DateTime(2000);
-    final DateTime lastDate = DateTime(2101);
-
-    final DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: firstDate,
-      lastDate: lastDate,
-    );
-
-    if (pickedDate != null) {
-      final String formattedDate = "${pickedDate.toLocal()}".split(' ')[0];
-      controller.text = formattedDate;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
+
 
 
   @override
@@ -315,59 +256,59 @@ class _HomePageState extends State<HomePage> {
                         ),
                         Stack(
                           alignment: Alignment.centerLeft,
-                         children: [
-                           Column(
-                            children: [
-                             _buildAutocompleteField(
-                                 _fromController, 'From', Icons.flight_takeoff),
-                             const SizedBox(height: 10),
-                              _buildAutocompleteField(
-                                  _toController, 'To', Icons.flight_land),
+                          children: [
+                            Column(
+                              children: [
+                                _buildAutocompleteField(
+                                    _fromController, 'From',
+                                    Icons.flight_takeoff),
+                                const SizedBox(height: 10),
+                                _buildAutocompleteField(
+                                    _toController, 'To', Icons.flight_land),
 
-                         ],
-                    ),
-                           if (showSwitchButton)
-                           Positioned(
-                             top: 50, // Ajustează pentru poziția dorită
-                             child: Container(
-                               decoration: BoxDecoration(
-                                 shape: BoxShape.circle,
-                                 color: Colors.blueAccent, // Fundal albastru pentru buton
-                                 boxShadow: [
-                                   BoxShadow(
-                                     color: Colors.black.withOpacity(0.2),
-                                     blurRadius: 5,
-                                     offset: Offset(0, 3),
-                                   ),
-                                 ],
-                               ),
-                               child: IconButton(
-                                 icon: const Icon(Icons.swap_vert, color: Colors.white),
-                                 onPressed: () {
-                                   setState(() {
-                                     // Salvăm valorile actuale
-                                     String tempFrom = _fromController.text;
-                                     String tempTo = _toController.text;
+                              ],
+                            ),
+                            if (showSwitchButton)
+                              Positioned(
+                                top: 50, // Ajustează pentru poziția dorită
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.blueAccent,
+                                    // Fundal albastru pentru buton
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 5,
+                                        offset: Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(
+                                        Icons.swap_vert, color: Colors.white),
+                                    onPressed: () {
+                                      setState(() {
+                                        // Salvăm valorile actuale
+                                        String tempFrom = _fromController.text;
+                                        String tempTo = _toController.text;
 
-                                     print('From: $tempFrom');
-                                     print('To: $tempTo');
+                                        print('From: $tempFrom');
+                                        print('To: $tempTo');
 
-                                     // Setăm textul interschimbat
-                                     _fromController.text = tempTo;
-                                     _toController.text = tempFrom;
-
-                                   });
-                                 },
-                               ),
-                             ),
-                             ),
-                         ],
+                                        // Setăm textul interschimbat
+                                        _fromController.text = tempTo;
+                                        _toController.text = tempFrom;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
 
-                        _buildDateField(
-                            _departureDateController, 'Departure Date'),
-                        if (isReturnFlight)
-                          _buildDateField(_returnDateController, 'Return Date'),
+                        _buildDateField(_departureDateController, 'Departure Date', isDeparture: true),
+                        if (isReturnFlight) _buildDateField(_returnDateController, 'Return Date'),
 
                         const SizedBox(height: 20),
 
@@ -444,15 +385,48 @@ class _HomePageState extends State<HomePage> {
   }
 
 
-  Widget _buildDateField(TextEditingController controller, String label) {
+  Widget _buildDateField(TextEditingController controller, String label, {bool isDeparture = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextField(
         controller: controller,
         readOnly: true,
-        // Previne editarea manuală
-        onTap: () => _selectDate(context, controller),
-        // Deschide selectorul de dată
+        onTap: () async {
+          if (isReturnFlight) {
+            final DateTimeRange? picked = await showDateRangePicker(
+              context: context,
+              firstDate: DateTime.now(),
+              lastDate: DateTime(DateTime.now().year + 2),
+              initialDateRange: (_departureDateController.text.isNotEmpty && _returnDateController.text.isNotEmpty)
+                  ? DateTimeRange(
+                  start: DateTime.parse(_departureDateController.text),
+                  end: DateTime.parse(_returnDateController.text))
+                  : null,
+            );
+
+            if (picked != null) {
+              setState(() {
+                _departureDateController.text = picked.start.toLocal().toString().split(' ')[0];
+                _returnDateController.text = picked.end.toLocal().toString().split(' ')[0]; // Setează doar return date-ul
+              });
+            }
+
+          } else {
+            final DateTime? picked = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime.now(),
+              lastDate: DateTime(DateTime.now().year + 2),
+            );
+
+            if (picked != null) {
+              setState(() {
+                _departureDateController.text = picked.toLocal().toString().split(' ')[0];
+                controller.text = _departureDateController.text;
+              });
+            }
+          }
+        },
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(Icons.date_range, color: Colors.blueAccent),
@@ -466,7 +440,7 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+
+
 }
-
-
-

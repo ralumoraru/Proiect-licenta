@@ -1,13 +1,13 @@
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flight_ticket_checker/models/BestFlights.dart';
+import 'package:http/http.dart' as http;
 
-import 'Flights/Flight.dart';
-import 'FlightResultPage.dart'; // Importăm noua pagină
-import 'Flights/FlightItinerary.dart';
-import 'IATACodeAPI.dart';
-import 'FlightSearchPage.dart';
+import 'package:flight_ticket_checker/models/Flight.dart';
+import 'package:flight_ticket_checker/views/flight_search/flight_search_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flight_ticket_checker/views/flight_search/flight_result_page.dart';
+import 'package:flight_ticket_checker/services/iata_code_api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -23,13 +23,13 @@ class _HomePageState extends State<HomePage> {
   TextEditingController _departureDateController = TextEditingController();
   TextEditingController _returnDateController = TextEditingController();
   bool showSwitchButton = false;
+  bool isReturnFlight = true;
 
-
+  final ApiService apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
-
     _fromController.addListener(_updateSwitchButtonVisibility);
     _toController.addListener(_updateSwitchButtonVisibility);
   }
@@ -43,18 +43,15 @@ class _HomePageState extends State<HomePage> {
 
 
   List<Flight> flights = [];
-  final ApiService apiService = ApiService(); // Instanțiază serviciul API
 
   bool isIataCode(String input) {
     return input.length == 3 && input == input.toUpperCase();
   }
 
-  bool isReturnFlight = true;
-
 
   Future<bool> saveSearchHistory(String from, String to, String departureDate,
-      String? returnDate) async
-  {
+      String? returnDate)
+  async {
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
 
@@ -108,21 +105,31 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    if (isReturnFlight && returnDate.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please select a return date for a round trip.'),
+      ));
+      return;
+    }
+
     try {
-      // Use the FlightSearchService to fetch the flight itineraries
+      int flightType = isReturnFlight ? 1 : 2;
       FlightSearchService flightSearchService = FlightSearchService();
-      List<FlightItinerary> itineraries = await flightSearchService.searchFlights(
+
+      List<BestFlight> itineraries = await flightSearchService.searchFlights(
         from: from,
         to: to,
         departureDate: departureDate,
-        returnDate: returnDate,
         isReturnFlight: isReturnFlight,
+        returnDate: isReturnFlight ? returnDate : null,
+        type: flightType,
       );
 
-      // În funcția searchFlights
+      print("Total itineraries received: ${itineraries.length}");
+      print("Itineraries details: $itineraries");  // Verifică cum arată datele aici
+
       if (itineraries.isNotEmpty) {
-        // Salvează istoricul căutării
-        await saveSearchHistory(from, to, departureDate, returnDate);
+        //await saveSearchHistory(from, to, departureDate, returnDate);
 
         Navigator.push(
           context,
@@ -137,26 +144,19 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       }
-
     } catch (e) {
+      print('Error home: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error home: $e')),
       );
     }
+
   }
-
-
 
   @override
   Widget build(BuildContext context) {
-    final double screenHeight = MediaQuery
-        .of(context)
-        .size
-        .height;
-    final double screenWidth = MediaQuery
-        .of(context)
-        .size
-        .width;
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -164,7 +164,6 @@ class _HomePageState extends State<HomePage> {
         height: screenHeight,
         child: Stack(
           children: [
-            // Imaginea de fundal
             Positioned(
               top: 0,
               left: 0,
@@ -182,11 +181,8 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-
-            // Containerul alb cu formularul
             Positioned(
               top: screenHeight * 0.20,
-              // Am ridicat formularul cu 0.08 față de 0.28
               left: screenWidth * 0.05,
               right: screenWidth * 0.05,
               child: SingleChildScrollView(
@@ -199,18 +195,10 @@ class _HomePageState extends State<HomePage> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          offset: Offset(0, 4),
-                          blurRadius: 10,
-                        ),
-                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Butoane One-Way și Return
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -226,9 +214,6 @@ class _HomePageState extends State<HomePage> {
                                   backgroundColor: !isReturnFlight
                                       ? Colors.lightBlueAccent
                                       : Colors.grey,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
                                 ),
                                 child: const Text('One-way'),
                               ),
@@ -245,9 +230,6 @@ class _HomePageState extends State<HomePage> {
                                   backgroundColor: isReturnFlight
                                       ? Colors.lightBlueAccent
                                       : Colors.grey,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
                                 ),
                                 child: const Text('Return'),
                               ),
@@ -268,66 +250,21 @@ class _HomePageState extends State<HomePage> {
 
                               ],
                             ),
-                            if (showSwitchButton)
-                              Positioned(
-                                top: 50, // Ajustează pentru poziția dorită
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.blueAccent,
-                                    // Fundal albastru pentru buton
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 5,
-                                        offset: Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: IconButton(
-                                    icon: const Icon(
-                                        Icons.swap_vert, color: Colors.white),
-                                    onPressed: () {
-                                      setState(() {
-                                        // Salvăm valorile actuale
-                                        String tempFrom = _fromController.text;
-                                        String tempTo = _toController.text;
-
-                                        print('From: $tempFrom');
-                                        print('To: $tempTo');
-
-                                        // Setăm textul interschimbat
-                                        _fromController.text = tempTo;
-                                        _toController.text = tempFrom;
-                                      });
-                                    },
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
-
-                        _buildDateField(_departureDateController, 'Departure Date', isDeparture: true),
-                        if (isReturnFlight) _buildDateField(_returnDateController, 'Return Date'),
-
+                        _buildDateField(),
                         const SizedBox(height: 20),
-
                         Center(
                           child: ElevatedButton(
                             onPressed: searchFlights,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.lightBlueAccent,
                               padding:
-                              const EdgeInsets.symmetric(
-                                  vertical: 10, horizontal: 30),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                              const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
                             ),
                             child: const Text(
                               'Search Flights',
-                              style: TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -385,62 +322,47 @@ class _HomePageState extends State<HomePage> {
   }
 
 
-  Widget _buildDateField(TextEditingController controller, String label, {bool isDeparture = false}) {
+  Widget _buildDateField() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextField(
-        controller: controller,
+        controller: _departureDateController,
         readOnly: true,
         onTap: () async {
-          if (isReturnFlight) {
-            final DateTimeRange? picked = await showDateRangePicker(
-              context: context,
-              firstDate: DateTime.now(),
-              lastDate: DateTime(DateTime.now().year + 2),
-              initialDateRange: (_departureDateController.text.isNotEmpty && _returnDateController.text.isNotEmpty)
-                  ? DateTimeRange(
-                  start: DateTime.parse(_departureDateController.text),
-                  end: DateTime.parse(_returnDateController.text))
-                  : null,
-            );
+          final DateTimeRange? picked = await showDateRangePicker(
+            context: context,
+            firstDate: DateTime.now(),
+            lastDate: DateTime(DateTime.now().year + 2),
+          );
 
-            if (picked != null) {
-              setState(() {
-                _departureDateController.text = picked.start.toLocal().toString().split(' ')[0];
-                _returnDateController.text = picked.end.toLocal().toString().split(' ')[0]; // Setează doar return date-ul
-              });
-            }
+          if (picked != null) {
+            setState(() {
+              _departureDateController.text = picked.start.toLocal().toString().split(' ')[0];
 
-          } else {
-            final DateTime? picked = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now(),
-              firstDate: DateTime.now(),
-              lastDate: DateTime(DateTime.now().year + 2),
-            );
-
-            if (picked != null) {
-              setState(() {
-                _departureDateController.text = picked.toLocal().toString().split(' ')[0];
-                controller.text = _departureDateController.text;
-              });
-            }
+              if (isReturnFlight) {
+                _returnDateController.text = picked.end.toLocal().toString().split(' ')[0];
+              } else {
+                _returnDateController.clear();
+              }
+            });
           }
+
+
+          print("Plecare: ${_departureDateController.text}");
+          print("Întoarcere: ${isReturnFlight ? _returnDateController.text : 'N/A'}");
+
         },
         decoration: InputDecoration(
-          labelText: label,
+          labelText: 'Select Dates',
           prefixIcon: Icon(Icons.date_range, color: Colors.blueAccent),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           filled: true,
           fillColor: Colors.grey[100],
-          contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
         ),
       ),
     );
   }
-
-
 
 }

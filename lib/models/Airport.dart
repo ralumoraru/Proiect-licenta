@@ -9,11 +9,12 @@ class Airport {
     required this.time,
   });
 
+
   factory Airport.fromJson(Map<String, dynamic> json) {
     return Airport(
-      name: json['name'] ?? 'Unknown',
-      id: json['id'] ?? 'Unknown',
-      time: json['time'] ?? 'Unknown',
+      name: json['name'],
+      id: json['id'],
+      time: json['time'],
     );
   }
 }

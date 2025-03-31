@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'loginpages/login.dart';
-import 'loginpages/signup.dart';
-import 'navigation_bar.dart';
+import 'views/auth/login_page.dart';
+import 'views/auth/signup_page.dart';
+import 'views/home/navigation_bar.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginPage(),
         '/sign-up': (context) => const SignUpPage(),
-        '/home': (context) => const AppNavigationBar(),
+        '/home': (context) => AppNavigationBar(),
       },
     );
   }

@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-import '../navigation_bar.dart';
+import 'package:flight_ticket_checker/views/home/navigation_bar.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -53,7 +53,7 @@ class _LoginPageState extends State<LoginPage> {
         // Redirecționează utilizatorul către pagina de home
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const AppNavigationBar()),
+          MaterialPageRoute(builder: (context) => AppNavigationBar()),
         );
 
       } else {

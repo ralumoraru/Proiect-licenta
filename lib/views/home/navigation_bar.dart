@@ -1,39 +1,37 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-
-import 'loginpages/signout.dart';
-import 'FlightHistoryPage.dart';
+import 'home_page.dart';
+import 'package:flight_ticket_checker/views/flight_search/flight_history_page.dart';
+import 'package:flight_ticket_checker/views/auth/signout_page.dart';
 
 class AppNavigationBar extends StatefulWidget {
-  const AppNavigationBar({super.key});
-
   @override
-  State<AppNavigationBar> createState() => _AppNavigationBarState();
+  _AppNavigationBarState createState() => _AppNavigationBarState();
 }
 
 class _AppNavigationBarState extends State<AppNavigationBar> {
   int currentPageIndex = 0;
 
+  final List<Widget> pages = [
+    HomePage(title: 'Home Page'),
+    FlightHistoryPage(),
+    SignOutPage(),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-
-    final List<Widget> pages = <Widget>[
-      const HomePage(title: 'Home Page'),
-      const FlightHistoryPage(),
-      const SignOutPage(), // Add the sign-out page here
-
-    ];
-
     return Scaffold(
+      body: IndexedStack(
+        index: currentPageIndex,
+        children: pages,
+      ),
       bottomNavigationBar: CurvedNavigationBar(
         index: currentPageIndex,
         height: 50.0,
         items: const <Widget>[
           Icon(Icons.home, size: 30, color: Colors.white),
           Icon(Icons.flight_outlined, size: 30, color: Colors.white),
-          Icon(Icons.exit_to_app, size: 30, color: Colors.white), // Sign-out button icon
+          Icon(Icons.exit_to_app, size: 30, color: Colors.white),
         ],
         color: Colors.lightBlue,
         buttonBackgroundColor: Colors.blue,
@@ -46,7 +44,6 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
           });
         },
       ),
-      body: pages[currentPageIndex], // Display the current page
     );
   }
 }

@@ -44,9 +44,37 @@ class FlightResultsPage extends StatelessWidget {
         });
       }
     }
+    // 🛫 Obținem aeroportul de plecare și destinația
+    String departureAirport = itineraries.first.flights.first.departureAirport.id;
+    String arrivalAirport = itineraries.first.flights.last.arrivalAirport.id;
+
+    // 📅 Obținem datele de plecare și întoarcere
+    String departureDate = _formatDate(itineraries.first.flights.first.departureAirport.time);
+    String? returnDate = itineraries.first.returnFlights.isNotEmpty
+        ? _formatDate(itineraries.first.returnFlights.first.first.departureAirport.time)
+        : null;
+
+
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Flight Results'), backgroundColor: Colors.blue),
+      appBar: AppBar(
+        backgroundColor: Colors.blue,
+        centerTitle: true,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              "$departureAirport → $arrivalAirport", // Ex: "OTP → CDG"
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              returnDate != null ? "$departureDate - $returnDate" : departureDate, // Ex: "12 Apr - 18 Apr" sau "12 Apr"
+              style: const TextStyle(fontSize: 13, color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
       body: flightPairs.isEmpty
           ? const Center(child: Text('No flights found.'))
           : ListView.builder(
@@ -59,9 +87,12 @@ class FlightResultsPage extends StatelessWidget {
 
           return GestureDetector(
             onTap: () async {
+              // Crează o instanță a clasei FlightSearchService
               FlightSearchService flightSearchService = FlightSearchService();
 
+              // Apelăm metoda pentru a obține detalii suplimentare
               var details = await flightSearchService.fetchBookingDetails(
+                // BookingToken de la primul zbor de întoarcere
                   returnFlightSet?.first.bookingToken ?? "",
                   outboundFlight.flights.first.departureAirport.id,
                   outboundFlight.flights.last.arrivalAirport.id,
@@ -70,7 +101,6 @@ class FlightResultsPage extends StatelessWidget {
                       ? outboundFlight.returnFlights.first.first.departureAirport.time
                       : null
               );
-
 
               Navigator.push(
                 context,
@@ -99,6 +129,15 @@ class FlightResultsPage extends StatelessWidget {
   }
 }
 
+String _formatDate(String dateTime) {
+  try {
+    DateTime parsedDate = DateTime.parse(dateTime);
+    return DateFormat("dd MMM").format(parsedDate); // Ex: "12 Apr"
+  } catch (e) {
+    return "Unknown";
+  }
+}
+
 class FlightItineraryCard extends StatelessWidget {
   final BestFlight outboundFlight;
   final List<Flight>? returnFlightSet;
@@ -115,14 +154,17 @@ class FlightItineraryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double fontSize = screenWidth * 0.04; // Adaptive font size
+
     if (outboundFlight.flights.isEmpty) return const Text("No flights available.");
 
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      margin: EdgeInsets.symmetric(vertical: 8, horizontal: screenWidth * 0.05),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 5,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(screenWidth * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -133,7 +175,7 @@ class FlightItineraryCard extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 "${returnFlightSet != null && returnFlightSet!.isNotEmpty ? returnFlightSet!.first.price : outboundFlight.flights.first.price} RON",
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black, fontStyle: FontStyle.italic),
               ),
             ),
           ],
@@ -157,7 +199,7 @@ class FlightItineraryCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.normal)),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13, color: Colors.black87)),
         const SizedBox(height: 5),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -201,7 +243,7 @@ class FlightItineraryCard extends StatelessWidget {
             ),
           ],
         ),
-        const Divider(),
+
       ],
     );
   }
@@ -215,8 +257,8 @@ class FlightItineraryCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(time ?? 'N/A', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              Text(airportId ?? 'Unknown', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(time ?? 'N/A', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              Text(airportId ?? 'Unknown', style: const TextStyle(fontSize: 11, color: Colors.grey)),
             ],
           ),
         ],
@@ -227,35 +269,45 @@ class FlightItineraryCard extends StatelessWidget {
   Widget _buildFlightInfoColumnWithNextDayIndicator(String? time, String? airportId, String imageUrl, bool isNextDay) {
     return Flexible(
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Image.network(imageUrl, width: 25),
-          const SizedBox(width: 8),
+          const SizedBox(width: 8), // Space between image and text
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
-                  children: [
-                    TextSpan(text: time ?? 'N/A'),
-                    if (isNextDay)
-                      WidgetSpan(
-                        child: Transform.translate(
-                          offset: const Offset(2, -4),
-                          child: const Text("+1", style: TextStyle(fontSize: 8, color: Colors.red)),
+              FittedBox( // Se asigură că textul nu depășește dimensiunea permisă
+                fit: BoxFit.scaleDown,
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: Colors.black),
+                    children: [
+                      TextSpan(text: time ?? 'N/A'),
+                      if (isNextDay)
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.top,
+                          child: Transform.translate(
+                            offset: const Offset(2, -4), // Moves "+1" up and slightly right
+                            child: const Text(
+                              "+1",
+                              style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.blue),
+                            ),
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              Text(airportId ?? 'Unknown', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                airportId ?? 'Unknown',
+                style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.normal, fontSize: 12),
+              ),
             ],
           ),
         ],
       ),
     );
   }
-
 
 
   String formatLayoverDuration(int? durationInMinutes) {

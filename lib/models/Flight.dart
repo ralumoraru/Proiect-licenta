@@ -13,6 +13,7 @@ class Flight {
   final String legroom;
   final List<String> extensions;
   int price;
+  String bookingToken;
   final List<Layover> layover;
 
 
@@ -29,6 +30,7 @@ class Flight {
     required this.extensions,
     required this.price,
     required this.layover,
+    required this.bookingToken,
   });
 
   factory Flight.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,7 @@ class Flight {
       layover: (json['layovers'] as List<dynamic>?)
           ?.map((layover) => Layover.fromJson(layover))
           .toList() ?? [],
+      bookingToken: json['booking_token'] ?? '',
     );
   }
 }

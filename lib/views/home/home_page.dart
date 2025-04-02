@@ -129,7 +129,7 @@ class _HomePageState extends State<HomePage> {
       print("Itineraries details: $itineraries");  // Verifică cum arată datele aici
 
       if (itineraries.isNotEmpty) {
-        //await saveSearchHistory(from, to, departureDate, returnDate);
+        await saveSearchHistory(from, to, departureDate, returnDate);
 
         Navigator.push(
           context,
@@ -280,8 +280,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildAutocompleteField(TextEditingController controller, String hint,
-      IconData icon) {
+  Widget _buildAutocompleteField(TextEditingController controller, String hint, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Autocomplete<String>(
@@ -293,14 +292,14 @@ class _HomePageState extends State<HomePage> {
         },
         onSelected: (String selection) {
           setState(() {
-            controller.text = selection;
+            // Extragem doar codul IATA din string-ul selectat
+            final match = RegExp(r'\((.*?)\)').firstMatch(selection);
+            if (match != null) {
+              controller.text = match.group(1)!;
+            }
           });
         },
-
-
-        fieldViewBuilder: (BuildContext context,
-            TextEditingController textEditingController, FocusNode focusNode,
-            VoidCallback onFieldSubmitted) {
+        fieldViewBuilder: (BuildContext context, TextEditingController textEditingController, FocusNode focusNode, VoidCallback onFieldSubmitted) {
           return TextField(
             controller: textEditingController,
             focusNode: focusNode,
@@ -312,14 +311,14 @@ class _HomePageState extends State<HomePage> {
               ),
               filled: true,
               fillColor: Colors.grey[100],
-              contentPadding: EdgeInsets.symmetric(
-                  vertical: 8.0, horizontal: 12.0),
+              contentPadding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
             ),
           );
         },
       ),
     );
   }
+
 
 
   Widget _buildDateField() {

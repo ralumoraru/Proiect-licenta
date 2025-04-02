@@ -20,24 +20,24 @@ class ApiService {
     return null;
   }
 
-  Future<List<String>> getAirportsForCity(String cityName) async {
+  Future<List<String>> getAirportsForCity(String query) async {
     try {
-      // Elimină "International Airport" dacă este prezent
-      String cleanedCity = cityName.replaceAll(RegExp(r' International Airport$', caseSensitive: false), '').trim();
-
-      final response = await http.get(Uri.parse('$baseUrl/airport-for-city?city=$cleanedCity'));
+      final response = await http.get(Uri.parse('$baseUrl/airport-suggestions?query=$query'));
 
       if (response.statusCode == 200) {
         final List<dynamic> airports = jsonDecode(response.body);
-        return airports.map((airport) => airport['airport_name'] as String).toList();
+        return airports.map((airport) =>
+        "${airport['airport_name']} (${airport['iata_code']}) - ${airport['city_name']}"
+        ).toList();
       } else {
-        print('Error fetching airports for $cleanedCity: ${response.statusCode}');
+        print('Error fetching airports: ${response.statusCode}');
       }
     } catch (e) {
-      print('Exception while fetching airports for $cityName: $e');
+      print('Exception while fetching airports: $e');
     }
     return [];
   }
+
 
 
 }

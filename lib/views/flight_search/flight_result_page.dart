@@ -138,6 +138,7 @@ String _formatDate(String dateTime) {
   }
 }
 
+
 class FlightItineraryCard extends StatelessWidget {
   final BestFlight outboundFlight;
   final List<Flight>? returnFlightSet;
@@ -155,9 +156,11 @@ class FlightItineraryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     double screenWidth = MediaQuery.of(context).size.width;
-    double fontSize = screenWidth * 0.04; // Adaptive font size
+    double fontSize = screenWidth * 0.04;
 
-    if (outboundFlight.flights.isEmpty) return const Text("No flights available.");
+    if (outboundFlight.flights.isEmpty) {
+      return const Center(child: Text("No flights available."));
+    }
 
     return Card(
       margin: EdgeInsets.symmetric(vertical: 8, horizontal: screenWidth * 0.05),
@@ -168,14 +171,14 @@ class FlightItineraryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            buildFlightDetails("Outbound", outboundFlight.flights, layovers),
+            buildFlightDetails("Outbound", outboundFlight.flights, layovers, fontSize),
             if (returnFlightSet != null && returnFlightSet!.isNotEmpty)
-              buildFlightDetails("Return", returnFlightSet!, returnLayovers),
+              buildFlightDetails("Return", returnFlightSet!, returnLayovers, fontSize),
             Align(
               alignment: Alignment.centerRight,
               child: Text(
                 "${returnFlightSet != null && returnFlightSet!.isNotEmpty ? returnFlightSet!.first.price : outboundFlight.flights.first.price} RON",
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black, fontStyle: FontStyle.italic),
+                style: TextStyle(fontSize: fontSize * 1.2, fontWeight: FontWeight.bold, color: Colors.black, fontStyle: FontStyle.italic),
               ),
             ),
           ],
@@ -184,81 +187,68 @@ class FlightItineraryCard extends StatelessWidget {
     );
   }
 
-  Widget buildFlightDetails(String title, List<Flight> flights, List<Layover> layovers) {
+  Widget buildFlightDetails(String title, List<Flight> flights, List<Layover> layovers, double fontSize) {
     Flight firstFlight = flights.first;
     Flight lastFlight = flights.last;
     bool hasLayovers = layovers.isNotEmpty;
 
-    // Convert time strings to DateTime objects
     DateTime departureDate = DateTime.parse(firstFlight.departureAirport.time);
     DateTime arrivalDate = DateTime.parse(lastFlight.arrivalAirport.time);
-
-    // Check if arrival is on the next day
     bool isNextDayArrival = arrivalDate.day > departureDate.day;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13, color: Colors.black87)),
+        Text(title, style: TextStyle(fontWeight: FontWeight.normal, fontSize: fontSize * 0.8, color: Colors.black87)),
         const SizedBox(height: 5),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildFlightInfoColumn(formatTime(firstFlight.departureAirport.time), firstFlight.departureAirport.id, firstFlight.airlineLogo),
+            _buildFlightInfoColumn(formatTime(firstFlight.departureAirport.time), firstFlight.departureAirport.id, firstFlight.airlineLogo, fontSize),
             Expanded(
               child: Center(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Layover duration with a background
                     if (hasLayovers)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.grey[350], // Light gray background
-                          borderRadius: BorderRadius.circular(10), // Rounded corners
+                          color: Colors.grey[350],
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           layovers.map((l) => formatLayoverDuration(l.duration)).join(", "),
-                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.normal, color: Colors.black),
+                          style: TextStyle(fontSize: fontSize * 0.8, fontWeight: FontWeight.normal, color: Colors.black),
                         ),
                       ),
-                    if (hasLayovers) const SizedBox(height: 5), // Add space between duration and number of stops
-                    // Number of stops
+                    if (hasLayovers) const SizedBox(height: 6),
                     Text(
-                      hasLayovers
-                          ? "${layovers.length} stop${layovers.length > 1 ? 's' : ''} • ${layovers.map((l) => l.id).join(", ")}"
-                          : "Direct",
-                      style: const TextStyle(fontWeight: FontWeight.normal, fontSize: 9, color: Colors.grey),
+                      hasLayovers ? "${layovers.length} stop${layovers.length > 1 ? 's' : ''} • ${layovers.map((l) => l.id).join(", ")}" : "Direct",
+                      style: TextStyle(fontWeight: FontWeight.normal, fontSize: fontSize * 0.7, color: Colors.grey),
                     ),
                   ],
                 ),
               ),
             ),
-            _buildFlightInfoColumnWithNextDayIndicator(
-                formatTime(lastFlight.arrivalAirport.time),
-                lastFlight.arrivalAirport.id,
-                lastFlight.airlineLogo,
-                isNextDayArrival
-            ),
+            _buildFlightInfoColumnWithNextDayIndicator(formatTime(lastFlight.arrivalAirport.time), lastFlight.arrivalAirport.id, lastFlight.airlineLogo, isNextDayArrival, fontSize),
           ],
         ),
-
       ],
     );
   }
 
-  Widget _buildFlightInfoColumn(String? time, String? airportId, String imageUrl) {
+  Widget _buildFlightInfoColumn(String? time, String? airportId, String imageUrl, double fontSize) {
     return Flexible(
       child: Row(
         children: [
-          Image.network(imageUrl, width: 25),
+          Image.network(imageUrl, width: fontSize*1.2),
           const SizedBox(width: 8),
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(time ?? 'N/A', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              Text(airportId ?? 'Unknown', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(time ?? 'N/A', style: TextStyle(fontSize: fontSize * 1.2, fontWeight: FontWeight.bold)),
+              Text(airportId ?? 'Unknown', style: TextStyle(fontSize: fontSize * 0.8, color: Colors.grey)),
             ],
           ),
         ],
@@ -266,31 +256,31 @@ class FlightItineraryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildFlightInfoColumnWithNextDayIndicator(String? time, String? airportId, String imageUrl, bool isNextDay) {
+  Widget _buildFlightInfoColumnWithNextDayIndicator(String? time, String? airportId, String imageUrl, bool isNextDay, double fontSize) {
     return Flexible(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.network(imageUrl, width: 25),
-          const SizedBox(width: 8), // Space between image and text
+          Image.network(imageUrl, width: fontSize*1.2),
+          const SizedBox(width: 8),
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              FittedBox( // Se asigură că textul nu depășește dimensiunea permisă
+              FittedBox(
                 fit: BoxFit.scaleDown,
                 child: RichText(
                   text: TextSpan(
-                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: Colors.black),
+                    style: TextStyle(fontSize: fontSize * 1.2, fontWeight: FontWeight.bold, color: Colors.black),
                     children: [
                       TextSpan(text: time ?? 'N/A'),
                       if (isNextDay)
                         WidgetSpan(
                           alignment: PlaceholderAlignment.top,
                           child: Transform.translate(
-                            offset: const Offset(2, -4), // Moves "+1" up and slightly right
-                            child: const Text(
+                            offset: const Offset(2, -4),
+                            child: Text(
                               "+1",
-                              style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.blue),
+                              style: TextStyle(fontSize: fontSize * 0.6, fontWeight: FontWeight.bold, color: Colors.blue),
                             ),
                           ),
                         ),
@@ -298,10 +288,7 @@ class FlightItineraryCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                airportId ?? 'Unknown',
-                style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.normal, fontSize: 12),
-              ),
+              Text(airportId ?? 'Unknown', style: TextStyle(color: Colors.grey, fontSize: fontSize * 0.8)),
             ],
           ),
         ],
@@ -309,16 +296,11 @@ class FlightItineraryCard extends StatelessWidget {
     );
   }
 
-
   String formatLayoverDuration(int? durationInMinutes) {
     if (durationInMinutes == null) return 'Invalid Duration';
-
     int hours = durationInMinutes ~/ 60;
     int minutes = durationInMinutes % 60;
-
-    return hours > 0
-        ? "$hours h ${minutes > 0 ? '$minutes m' : ''}"
-        : "$minutes min";
+    return hours > 0 ? "$hours h ${minutes > 0 ? '$minutes m' : ''}" : "$minutes min";
   }
 
   String formatTime(String? date) {

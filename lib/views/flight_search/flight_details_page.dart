@@ -27,7 +27,7 @@ class FlightDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Flight Details'),
+        title: const Text('Trip Summary'),
         backgroundColor: Colors.blueAccent,
       ),
       body: Padding(
@@ -36,10 +36,10 @@ class FlightDetailsPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildFlightSection("Outbound Flight", itinerary.flights),
+              _buildFlightSection("Outbound Intinerary", itinerary.flights),
               if (returnFlights != null && returnFlights!.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                _buildFlightSection("Return Flight", returnFlights!),
+                _buildFlightSection("Return Intinerary", returnFlights!),
               ],
               const SizedBox(height: 20),
               _buildPriceSection(),
@@ -56,7 +56,10 @@ class FlightDetailsPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+        ),
         const SizedBox(height: 10),
         ListView.builder(
           shrinkWrap: true,
@@ -66,28 +69,101 @@ class FlightDetailsPage extends StatelessWidget {
             final flight = flights[index];
             return Column(
               children: [
-                Card(
+                // Folosim un Container pentru a controla lățimea Card-ului
+                Container(
                   margin: const EdgeInsets.symmetric(vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 5,
-                  child: ListTile(
-                    leading: Image.network(flight.airlineLogo, width: 50),
-                    title: Text("${flight.departureAirport.id} → ${flight.arrivalAirport.id}",
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(
-                      "Departure: ${flight.departureAirport.time}\nArrival: ${flight.arrivalAirport.time}",
-                      style: const TextStyle(color: Colors.blueGrey),
+                  width: MediaQuery.of(context).size.width * 0.9, // Ocupă 90% din lățimea ecranului
+                  child: Card(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 5,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Folosim un Row pentru a organiza informațiile pe orizontală
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Coloană pentru ora și durata
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    formatDate(flight.departureAirport.time),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                              // Coloană pentru ID-ul și numele aeroportului
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    flight.departureAirport.id,
+                                    style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
+                                  ),
+                                  Text(
+                                    cutAirportName(flight.departureAirport.name),
+                                    style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10), // Adăugăm un spațiu între secțiuni
+                          const Icon(Icons.flight_outlined, color: Colors.blueAccent),
+                          Text(
+                            formatDuration(flight.duration),
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                          ),
+                          const SizedBox(height: 10),
+                          // Continuăm cu secțiunea de sosire
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Coloană pentru ora și durata de sosire
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    formatDate(flight.arrivalAirport.time),
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  ),
+
+                                ],
+                              ),
+                              // Coloană pentru ID-ul și numele aeroportului de sosire
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    flight.arrivalAirport.id,
+                                    style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
+                                  ),
+                                  Text(
+                                    cutAirportName(flight.arrivalAirport.name),
+                                    style: const TextStyle(fontSize: 14, color: Colors.blueGrey),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
+                // Adăugăm un padding doar între zboruri
                 if (index < flights.length - 1)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Column(
                       children: [
-                        Text("Layover: ${formatDuration(flights[index + 1].layover.length)} at ${flights[index].arrivalAirport.id}",
-                            style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.redAccent)),
-                        const Divider(),
+                        Text(
+                          "Layover: ${formatDuration(flights[index + 1].layover.length)} at ${flights[index].arrivalAirport.id}",
+                          style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.redAccent),
+                        ),
                       ],
                     ),
                   ),
@@ -98,6 +174,60 @@ class FlightDetailsPage extends StatelessWidget {
       ],
     );
   }
+
+
+  //departure and arival date transfor into day and month with name and keep the time
+  //Example: 2023-10-01T12:00:00Z -> 1 October 12:00
+  // Modificarea funcției `formatDate` pentru a include și ziua din săptămână
+  String formatDate(String date) {
+    DateTime parsedDate = DateTime.parse(date);
+    String dayName = _getDayName(parsedDate.weekday);  // Obținem numele zilei din săptămână
+    String formattedDate = "$dayName, ${parsedDate.day} ${_getMonthName(parsedDate.month)} ${parsedDate.hour}:${parsedDate.minute}";
+    return formattedDate;
+  }
+
+// Funcția care returnează numele zilei din săptămână
+  String _getDayName(int day) {
+    const dayNames = [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thur",
+      "Fri",
+      "Sat"
+    ];
+    return dayNames[day % 7];
+  }
+
+
+  //Get month name from number
+  String _getMonthName(int month) {
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ];
+    return monthNames[month - 1];
+  }
+
+  //If you find in airport name Airport, cut it
+  String cutAirportName(String name) {
+    if (name.contains("Airport")) {
+      return name.replaceAll("Airport", "").trim();
+    }
+    return name;
+  }
+
 
   Widget _buildPriceSection() {
     return Align(

@@ -112,6 +112,8 @@ class FlightResultsPage extends StatelessWidget {
                         ? returnFlightSet.first.price
                         : outboundFlight.flights.first.price,
                     bookingDetails: details,
+                    outboundLayovers: outboundLayovers, // Pass outbound layovers
+                    returnLayovers: returnLayovers, // Pass return layovers
                   ),
                 ),
               );
@@ -178,7 +180,7 @@ class FlightItineraryCard extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 "${returnFlightSet != null && returnFlightSet!.isNotEmpty ? returnFlightSet!.first.price : outboundFlight.flights.first.price} RON",
-                style: TextStyle(fontSize: fontSize * 1.2, fontWeight: FontWeight.bold, color: Colors.black, fontStyle: FontStyle.italic),
+                style: TextStyle(fontSize: fontSize * 0.9, fontWeight: FontWeight.bold, color: Colors.black, fontStyle: FontStyle.italic),
               ),
             ),
           ],
@@ -219,13 +221,13 @@ class FlightItineraryCard extends StatelessWidget {
                         ),
                         child: Text(
                           layovers.map((l) => formatLayoverDuration(l.duration)).join(", "),
-                          style: TextStyle(fontSize: fontSize * 0.8, fontWeight: FontWeight.normal, color: Colors.black),
+                          style: TextStyle(fontSize: fontSize * 0.5, fontWeight: FontWeight.normal, color: Colors.black),
                         ),
                       ),
                     if (hasLayovers) const SizedBox(height: 6),
                     Text(
                       hasLayovers ? "${layovers.length} stop${layovers.length > 1 ? 's' : ''} • ${layovers.map((l) => l.id).join(", ")}" : "Direct",
-                      style: TextStyle(fontWeight: FontWeight.normal, fontSize: fontSize * 0.7, color: Colors.grey),
+                      style: TextStyle(fontWeight: FontWeight.normal, fontSize: fontSize * 0.3, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -247,8 +249,8 @@ class FlightItineraryCard extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(time ?? 'N/A', style: TextStyle(fontSize: fontSize * 1.2, fontWeight: FontWeight.bold)),
-              Text(airportId ?? 'Unknown', style: TextStyle(fontSize: fontSize * 0.8, color: Colors.grey)),
+              Text(time ?? 'N/A', style: TextStyle(fontSize: fontSize * 0.7, fontWeight: FontWeight.bold)),
+              Text(airportId ?? 'Unknown', style: TextStyle(fontSize: fontSize * 0.5, color: Colors.grey)),
             ],
           ),
         ],
@@ -280,7 +282,7 @@ class FlightItineraryCard extends StatelessWidget {
                             offset: const Offset(2, -4),
                             child: Text(
                               "+1",
-                              style: TextStyle(fontSize: fontSize * 0.6, fontWeight: FontWeight.bold, color: Colors.blue),
+                              style: TextStyle(fontSize: fontSize * 0.5, fontWeight: FontWeight.bold, color: Colors.blue),
                             ),
                           ),
                         ),
@@ -288,7 +290,7 @@ class FlightItineraryCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(airportId ?? 'Unknown', style: TextStyle(color: Colors.grey, fontSize: fontSize * 0.8)),
+              Text(airportId ?? 'Unknown', style: TextStyle(color: Colors.grey, fontSize: fontSize * 0.5)),
             ],
           ),
         ],

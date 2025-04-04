@@ -258,6 +258,8 @@ class FlightSearchService {
                   'local_prices': together['local_prices'],
                   'baggage_prices': together['baggage_prices'],
                   'booking_request': together['booking_request'],
+                  'option_title': together['option_title'],
+                  'extensions': together['extensions'],
                 });
                 print("Booking option: ${together['book_with']}");
               } else {

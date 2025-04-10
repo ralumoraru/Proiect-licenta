@@ -21,6 +21,7 @@ class FlightResultsPage extends StatelessWidget {
           .toSet()
           .toList();
 
+      // Check if there are return flights
       if (outboundFlight.returnFlights.isNotEmpty) {
         for (var returnFlightSet in outboundFlight.returnFlights) {
           List<Layover> allReturnLayovers = returnFlightSet
@@ -36,25 +37,25 @@ class FlightResultsPage extends StatelessWidget {
           });
         }
       } else {
+        // For one-way flights, we handle the absence of return flights properly
         flightPairs.add({
           "outboundFlight": outboundFlight,
           "returnFlight": null,
           "layovers": allOutboundLayovers,
-          "returnLayovers": [],
+          "returnLayovers": [],  // Empty list for return layovers
         });
       }
     }
-    // 🛫 Obținem aeroportul de plecare și destinația
+
+    // 🛫 Get departure and arrival airports
     String departureAirport = itineraries.first.flights.first.departureAirport.id;
     String arrivalAirport = itineraries.first.flights.last.arrivalAirport.id;
 
-    // 📅 Obținem datele de plecare și întoarcere
+    // 📅 Get departure and return dates
     String departureDate = _formatDate(itineraries.first.flights.first.departureAirport.time);
     String? returnDate = itineraries.first.returnFlights.isNotEmpty
         ? _formatDate(itineraries.first.returnFlights.first.first.departureAirport.time)
         : null;
-
-
 
     return Scaffold(
       appBar: AppBar(
@@ -69,7 +70,7 @@ class FlightResultsPage extends StatelessWidget {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             Text(
-              returnDate != null ? "$departureDate - $returnDate" : departureDate, // Ex: "12 Apr - 18 Apr" sau "12 Apr"
+              returnDate != null ? "$departureDate - $returnDate" : departureDate, // Ex: "12 Apr - 18 Apr" or "12 Apr"
               style: const TextStyle(fontSize: 13, color: Colors.white70),
             ),
           ],
@@ -81,26 +82,52 @@ class FlightResultsPage extends StatelessWidget {
         itemCount: flightPairs.length,
         itemBuilder: (context, index) {
           var outboundFlight = flightPairs[index]["outboundFlight"] as BestFlight;
-          var returnFlightSet = flightPairs[index]["returnFlight"] as List<Flight>?;
-          var outboundLayovers = flightPairs[index]["layovers"] as List<Layover>;
-          var returnLayovers = flightPairs[index]["returnLayovers"] as List<Layover>;
+          var returnFlightSet = flightPairs[index]["returnFlight"] as List<Flight>?;  // Safe cast to List<Flight> or null
+          var outboundLayovers = flightPairs[index]["layovers"] as List<Layover>;  // Safe cast to List<Layover>
+
+// Safely handle returnLayovers for one-way flights
+          var returnLayovers = returnFlightSet != null && returnFlightSet.isNotEmpty
+              ? flightPairs[index]["returnLayovers"] as List<Layover>
+              : <Layover>[];  // If no return flights, return an empty list of Layovers
+
 
           return GestureDetector(
             onTap: () async {
-              // Crează o instanță a clasei FlightSearchService
+              print("Tapped on flight card.");
+
+              // Determine which booking token to use
+              String bookingToken = "";
+              if (returnFlightSet != null && returnFlightSet.isNotEmpty) {
+                // If return flights exist, use the booking token from the return flight
+                bookingToken = returnFlightSet.first.bookingToken ?? "";
+              } else {
+                // If it's a one-way flight, use the booking token from the outbound flight
+                bookingToken = outboundFlight.flights.first.bookingToken ?? "";
+              }
+
+              print("Booking Token: $bookingToken");
+
+              // Ensure the token is valid before proceeding
+              if (bookingToken.isEmpty) {
+                print("Error: Booking token is missing.");
+                return;  // Return early if there's no valid booking token
+              }
+
+              // Create an instance of FlightSearchService
               FlightSearchService flightSearchService = FlightSearchService();
 
-              // Apelăm metoda pentru a obține detalii suplimentare
+              // Call the method to get booking details
               var details = await flightSearchService.fetchBookingDetails(
-                // BookingToken de la primul zbor de întoarcere
-                  returnFlightSet?.first.bookingToken ?? "",
-                  outboundFlight.flights.first.departureAirport.id,
-                  outboundFlight.flights.last.arrivalAirport.id,
-                  outboundFlight.flights.first.departureAirport.time,
-                  outboundFlight.returnFlights.isNotEmpty
-                      ? outboundFlight.returnFlights.first.first.departureAirport.time
-                      : null
+                bookingToken,  // Use the appropriate booking token
+                outboundFlight.flights.first.departureAirport.id,
+                outboundFlight.flights.last.arrivalAirport.id,
+                outboundFlight.flights.first.departureAirport.time,
+                outboundFlight.returnFlights.isNotEmpty
+                    ? outboundFlight.returnFlights.first.first.departureAirport.time
+                    : null,
               );
+
+              print("Booking details received: $details");
 
               Navigator.push(
                 context,

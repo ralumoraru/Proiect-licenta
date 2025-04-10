@@ -1,3 +1,4 @@
+import 'package:flight_ticket_checker/models/AmadeusFlight.dart';
 import 'package:flight_ticket_checker/models/BookingOptions.dart';
 import 'package:flight_ticket_checker/models/Layover.dart';
 import 'package:http/http.dart' as http;
@@ -70,6 +71,22 @@ class FlightSearchService {
         if (bestFlightsJson != null && bestFlightsJson is List) {
           bestFlights = bestFlightsJson.map<BestFlight>((json) =>
               BestFlight.fromJson(json)).toList();
+
+          // Get the price for each flight using flight models and the flight it's in flight in json response
+          for (var i = 0; i < bestFlights.length; i++) {
+            var flightData = bestFlightsJson[i];
+            int price = flightData['price'] ?? 0;
+            String bookingToken = flightData['booking_token'] ?? '';
+
+            for (var flight in bestFlights[i].flights) {
+              flight.price = price;
+              flight.bookingToken = bookingToken;
+
+              print("Booking token: $bookingToken");
+            }
+          }
+
+
         }
 
 
@@ -87,6 +104,7 @@ class FlightSearchService {
         if (bestFlights.isEmpty && otherFlightsJson != null && otherFlightsJson is List) {
           allFlights = otherFlightsJson.map<BestFlight>((json) =>
               BestFlight.fromJson(json)).toList();
+
         } else {
           allFlights.addAll(bestFlights);
         }
@@ -185,6 +203,88 @@ class FlightSearchService {
     return [];
   }
 
+  Future<List<AmadeusFlight>> searchFlightsAmadeus({
+    required String from,
+    required String to,
+    required String departureDate,
+    required bool isReturnFlight,
+    String? returnDate,
+    required int type,
+  }) async
+  {
+    String? fromCode = isIataCode(from) ? from : await apiService
+        .getAirportCodeByCity(from);
+    String? toCode = isIataCode(to) ? to : await apiService
+        .getAirportCodeByCity(to);
+
+    if (fromCode == null || toCode == null) {
+      throw Exception('Could not find airport codes for the cities entered.');
+    }
+
+    String apiKey = 'm4P5xIeJw3GCwZGjQVg5iqA11m80WpxG';
+    String apiSecret = 'TT4Jg67cZ9hBSptm';
+
+    String? accessToken = await getAccessToken(apiKey, apiSecret);
+    if (accessToken == null) {
+      throw Exception('Could not get access token.');
+    }
+
+    print("Access token: $accessToken");
+    final url = Uri.parse(
+        'https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode=$fromCode&destinationLocationCode=$toCode&departureDate=$departureDate&returnDate=$returnDate&adults=1&max=5');
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final fullJson = json.decode(response.body);
+
+      // Pretty print the whole response
+      const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+      final prettyJson = encoder.convert(fullJson);
+      print('Full Amadeus Response:\n$prettyJson');
+
+      final List flights = fullJson['data'];
+      return flights.map((flightJson) => AmadeusFlight.fromJson(flightJson)).toList();
+
+      print('flights: $flights');
+
+
+      // You can return [] here or parse the data after previewing
+    } else {
+      print('Flight search failed: ${response.body}');
+    }
+
+
+
+    return [];
+  }
+
+
+  Future<String?> getAccessToken(String apiKey, String apiSecret) async {
+    final response = await http.post(
+      Uri.parse('https://test.api.amadeus.com/v1/security/oauth2/token'),
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: {
+        'grant_type': 'client_credentials',
+        'client_id': apiKey,
+        'client_secret': apiSecret,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['access_token'];
+    } else {
+      print('Auth failed: ${response.body}');
+      return null;
+    }
+  }
+
 
   Future<List<Map<String, dynamic>>> fetchBookingDetails(
       String bookingToken,
@@ -198,14 +298,15 @@ class FlightSearchService {
     String formatDate(String dateTimeString) {
       try {
         final DateTime parsedDate = DateTime.parse(dateTimeString);
-        return DateFormat('yyyy-MM-dd').format(parsedDate); // Formatează doar data
+        return DateFormat('yyyy-MM-dd').format(parsedDate); // Format only the date
       } catch (e) {
-        return '';  // În cazul în care data nu poate fi parsată, returnează un string gol
+        print("Error formatting date: $e");
+        return '';  // Return empty string if parsing fails
       }
     }
 
     String outboundDateFormatted = formatDate(departureDate);
-    String returnDateFormatted = formatDate(returnDate ?? '');
+    String? returnDateFormatted = returnDate != null ? formatDate(returnDate) : null;
 
     print("arrival_id: $toCode");
     print("departure_id: $fromCode");
@@ -214,70 +315,80 @@ class FlightSearchService {
 
     print("Outbound date formatted: $outboundDateFormatted");
 
-    // Asigură-te că URL-ul conține toți parametrii necesari
-    String apiUrl = 'https://serpapi.com/search.json?'
-        '&arrival_id=$toCode'
-        '&currency=RON'
-        '&departure_id=$fromCode'
-        '&booking_token=$bookingToken'
-        '&engine=google_flights'
-        '&hl=en'
-        '&outbound_date=$outboundDateFormatted'
-        '&return_date=$returnDateFormatted'
-        '&type=1'
-        '&api_key=$apiKey';
+    String apiUrl;
+
+    if (returnDateFormatted != null) {
+      apiUrl = 'https://serpapi.com/search.json?'
+          '&arrival_id=$toCode'
+          '&currency=RON'
+          '&departure_id=$fromCode'
+          '&booking_token=$bookingToken'
+          '&engine=google_flights'
+          '&hl=en'
+          '&outbound_date=$outboundDateFormatted'
+          '&return_date=$returnDateFormatted'
+          '&type=1'
+          '&api_key=$apiKey';
+    } else {
+      apiUrl = 'https://serpapi.com/search.json?'
+          '&arrival_id=$toCode'
+          '&currency=RON'
+          '&departure_id=$fromCode'
+          '&booking_token=$bookingToken'
+          '&engine=google_flights'
+          '&hl=en'
+          '&outbound_date=$outboundDateFormatted'
+          '&type=2'
+          '&api_key=$apiKey';
+    }
+
+    print("Generated API URL: $apiUrl");
 
     try {
-      // Realizează cererea HTTP
       final response = await http.get(Uri.parse(apiUrl));
       if (response.statusCode == 200) {
-        // Parsăm răspunsul JSON
         Map<String, dynamic> data = json.decode(response.body);
 
-        // Extragem opțiunile de rezervare
         List<Map<String, dynamic>> flightDetails = [];
 
-        var bookingOptions = List<Map<String, dynamic>>.from(data['booking_options']);
+        if (data['booking_options'] != null) {
+          var bookingOptions = List<Map<String, dynamic>>.from(data['booking_options']);
 
-        // print("Booking options: $bookingOptions");
-
-        if (bookingOptions is List) {
-          for (var option in bookingOptions) {
-            // Verifică dacă 'together' există și este un obiect
-            var together = option['together'] as Map<String, dynamic>?;
-            if (together != null) {
-              // Verifică dacă 'together' conține cheile necesare
-              if (together is Map && together.containsKey('book_with') &&
-                  together.containsKey('airline_logos')) {
-                var bookingOptionData = BookingOptions.fromJson(together);
-                flightDetails.add({
-                  'book_with': bookingOptionData.bookWith,
-                  'airline_logos': bookingOptionData.airlineLogos,
-                  'marketed_as': together['marketed_as'],
-                  'price': together['price'],
-                  'local_prices': together['local_prices'],
-                  'baggage_prices': together['baggage_prices'],
-                  'booking_request': together['booking_request'],
-                  'option_title': together['option_title'],
-                  'extensions': together['extensions'],
-                });
-                print("Booking option: ${together['book_with']}");
+          if (bookingOptions is List) {
+            for (var option in bookingOptions) {
+              var together = option['together'] as Map<String, dynamic>?;
+              if (together != null) {
+                if (together.containsKey('book_with') && together.containsKey('airline_logos')) {
+                  var bookingOptionData = BookingOptions.fromJson(together);
+                  flightDetails.add({
+                    'book_with': bookingOptionData.bookWith,
+                    'airline_logos': bookingOptionData.airlineLogos,
+                    'marketed_as': together['marketed_as'],
+                    'price': together['price'],
+                    'local_prices': together['local_prices'],
+                    'baggage_prices': together['baggage_prices'],
+                    'booking_request': together['booking_request'],
+                    'option_title': together['option_title'],
+                    'extensions': together['extensions'],
+                  });
+                  print("Booking option: ${together['book_with']}");
+                } else {
+                  print("Error: Missing required fields in 'together'.");
+                }
               } else {
-                print("Error: Missing required fields in 'together'.");
+                print("Error: 'together' is null.");
               }
-            } else {
-              print("Error: 'together' is null.");
             }
           }
         } else {
-          print("Error: 'booking_options' is not a list, it's a ${bookingOptions
-              .runtimeType}");
-          return []; // Returnăm o listă goală pentru a evita erorile
+          print("Error: 'booking_options' not found in the response.");
         }
+
         print("Booking options: $flightDetails");
-        return flightDetails; // Returnăm lista cu opțiuni de zbor
-      }else {
+        return flightDetails;
+      } else {
         print("Failed to load booking details. Status code: ${response.statusCode}");
+        print("Response body: ${response.body}");
         return [];
       }
     } catch (e) {
@@ -285,7 +396,6 @@ class FlightSearchService {
       return [];
     }
   }
-
 
 
   bool isIataCode(String input) {

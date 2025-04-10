@@ -18,7 +18,6 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController _confirmPasswordController = TextEditingController();
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
   bool _isLoading = false;
 
   Future<void> _signUp() async {
@@ -48,8 +47,6 @@ class _SignUpPageState extends State<SignUpPage> {
       if (userCredential.user != null) {
         final uid = userCredential.user!.uid;
         final firebaseToken = await userCredential.user!.getIdToken();
-
-        print('Generated UID: $uid');
 
         if (firebaseToken != null) {
           await _sendUserDataToBackend(
@@ -87,9 +84,6 @@ class _SignUpPageState extends State<SignUpPage> {
         body: body,
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final token = data['token'];
@@ -97,12 +91,10 @@ class _SignUpPageState extends State<SignUpPage> {
         if (token != null && token.isNotEmpty) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', token);
-          await Future.delayed(const Duration(milliseconds: 500));
 
-          print('User registered and token saved: $token');
           Navigator.pushReplacementNamed(context, '/home');
         } else {
-          print('Token missing from response.');
+          _showMessage('Token missing from response.');
         }
       } else {
         _showMessage('Failed to register user.');
@@ -116,60 +108,153 @@ class _SignUpPageState extends State<SignUpPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Widget neumorphicTextField({
+    required String hint,
+    required IconData icon,
+    required TextEditingController controller,
+    bool obscure = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F2FD), // Light blue
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.white, offset: Offset(-5, -5), blurRadius: 10),
+          BoxShadow(color: Color(0xFF90CAF9), offset: Offset(5, 5), blurRadius: 10),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure,
+        decoration: InputDecoration(
+          hintText: hint,
+          prefixIcon: Icon(icon, color: Colors.blueGrey),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final textScale = MediaQuery.of(context).textScaleFactor;
+    final isTablet = size.shortestSide >= 600;
+
+    double getFontSize(double base) => base * (isTablet ? 1.4 : 1.0) * textScale;
+    double getButtonHeight() => isTablet ? 60 : 50;
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: <Widget>[
-            const SizedBox(height: 100),
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+      backgroundColor: const Color(0xFFE3F2FD), // Light blue background
+      body: Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              Container(
+                padding: EdgeInsets.all(isTablet ? 24 : 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE3F2FD),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.white, offset: Offset(-4, -4), blurRadius: 10),
+                    BoxShadow(color: Color(0xFF90CAF9), offset: Offset(4, 4), blurRadius: 10),
+                  ],
+                ),
+                child: Icon(
+                  Icons.person_add_alt_1_rounded,
+                  size: isTablet ? 64 : 36,
+                  color: Colors.blue[700],
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              Text(
+                'Create Account',
+                style: TextStyle(
+                  fontSize: getFontSize(14),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[900],
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 8),
+              Text(
+                'Join now to start booking amazing flight deals.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: getFontSize(9),
+                  color: Colors.blueGrey,
+                ),
               ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _confirmPasswordController,
-              decoration: const InputDecoration(
-                labelText: 'Confirm Password',
-                border: OutlineInputBorder(),
+              const SizedBox(height: 24),
+              neumorphicTextField(
+                hint: 'Name',
+                icon: Icons.person_outline,
+                controller: _nameController,
               ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            _isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-              onPressed: _signUp,
-              child: const Text('Sign Up'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-              child: const Text('Already have an account? Sign In'),
-            ),
-          ],
+              neumorphicTextField(
+                hint: 'Email',
+                icon: Icons.email_outlined,
+                controller: _emailController,
+              ),
+              neumorphicTextField(
+                hint: 'Password',
+                icon: Icons.lock_outline,
+                controller: _passwordController,
+                obscure: true,
+              ),
+              neumorphicTextField(
+                hint: 'Confirm Password',
+                icon: Icons.lock_outline,
+                controller: _confirmPasswordController,
+                obscure: true,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: getButtonHeight(),
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _signUp,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1565C0), // Deep blue button
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                      : Text(
+                    'Sign Up',
+                    style: TextStyle(fontSize: getFontSize(12), color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+                child: Text.rich(
+                  TextSpan(
+                    text: "Already have an account? ",
+                    style: TextStyle(fontSize: getFontSize(10), color: Colors.blueGrey),
+                    children: [
+                      TextSpan(
+                        text: "Sign in",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: getFontSize(10),
+                          color: Colors.blue[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

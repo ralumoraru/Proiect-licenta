@@ -30,7 +30,7 @@ class FlightSearchService {
       throw Exception('Could not find airport codes for the cities entered.');
     }
 
-    String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
+    String apiKey = '50b072c2283ec747acbd3146e1ab9ea8e1fa2dd1d42365ab7372f785e68be5bc';
     String apiUrl;
 
     if (type == 1 && returnDate != null) {
@@ -61,16 +61,20 @@ class FlightSearchService {
 
       if (response.statusCode == 200) {
         var decodedJson = jsonDecode(response.body);
+        print("Response JSON: $decodedJson");
         var bestFlightsJson = decodedJson['best_flights']; // Get best flights first
         var otherFlightsJson = decodedJson['other_flights']; // Get other flights if no best flights
 
         List<BestFlight> bestFlights = [];
         List<BestFlight> allFlights = [];
+        print("Best flights JSON: $bestFlightsJson");
+        print("Other flights JSON: $otherFlightsJson");
 
         // Process best flights if available
         if (bestFlightsJson != null && bestFlightsJson is List) {
           bestFlights = bestFlightsJson.map<BestFlight>((json) =>
               BestFlight.fromJson(json)).toList();
+          print('Sunt aici');
 
           // Get the price for each flight using flight models and the flight it's in flight in json response
           for (var i = 0; i < bestFlights.length; i++) {
@@ -99,11 +103,34 @@ class FlightSearchService {
         allFlights.addAll(otherFlights); // Add all the other flights
       }
         */
+        print("Sunt aici 1");
         // If no best flights are found search for other flights
         // ✅ Process other flights if no best flights are found
         if (bestFlights.isEmpty && otherFlightsJson != null && otherFlightsJson is List) {
-          allFlights = otherFlightsJson.map<BestFlight>((json) =>
-              BestFlight.fromJson(json)).toList();
+          print("Processing other flights");
+          
+          try {
+            allFlights = otherFlightsJson.map<BestFlight>((json) => BestFlight.fromJson(json)).toList();
+          } catch (e) {
+            print("Eroare în BestFlight.fromJson(): $e");
+          }
+
+          print("All flights JSON: $allFlights");
+          print('Sunt aici 2');
+
+          // Get the price for each flight using flight models and the flight it's in flight in json response
+          for (var i = 0; i < allFlights.length; i++) {
+            var flightData = otherFlightsJson[i];
+            int price = flightData['price'] ?? 0;
+            String bookingToken = (flightData['booking_token'] ?? '').toString();
+
+            for (var flight in allFlights[i].flights) {
+              flight.price = price;
+              flight.bookingToken = bookingToken;
+
+              print("Booking token: $bookingToken");
+            }
+          }
 
         } else {
           allFlights.addAll(bestFlights);
@@ -251,9 +278,6 @@ class FlightSearchService {
       final List flights = fullJson['data'];
       return flights.map((flightJson) => AmadeusFlight.fromJson(flightJson)).toList();
 
-      print('flights: $flights');
-
-
       // You can return [] here or parse the data after previewing
     } else {
       print('Flight search failed: ${response.body}');
@@ -263,7 +287,6 @@ class FlightSearchService {
 
     return [];
   }
-
 
   Future<String?> getAccessToken(String apiKey, String apiSecret) async {
     final response = await http.post(
@@ -285,15 +308,15 @@ class FlightSearchService {
     }
   }
 
-
   Future<List<Map<String, dynamic>>> fetchBookingDetails(
       String bookingToken,
       String fromCode,
       String toCode,
       String departureDate,
-      String? returnDate) async {
+      String? returnDate) async
+  {
 
-    String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
+    String apiKey = '50b072c2283ec747acbd3146e1ab9ea8e1fa2dd1d42365ab7372f785e68be5bc';
 
     String formatDate(String dateTimeString) {
       try {
@@ -354,33 +377,31 @@ class FlightSearchService {
         if (data['booking_options'] != null) {
           var bookingOptions = List<Map<String, dynamic>>.from(data['booking_options']);
 
-          if (bookingOptions is List) {
-            for (var option in bookingOptions) {
-              var together = option['together'] as Map<String, dynamic>?;
-              if (together != null) {
-                if (together.containsKey('book_with') && together.containsKey('airline_logos')) {
-                  var bookingOptionData = BookingOptions.fromJson(together);
-                  flightDetails.add({
-                    'book_with': bookingOptionData.bookWith,
-                    'airline_logos': bookingOptionData.airlineLogos,
-                    'marketed_as': together['marketed_as'],
-                    'price': together['price'],
-                    'local_prices': together['local_prices'],
-                    'baggage_prices': together['baggage_prices'],
-                    'booking_request': together['booking_request'],
-                    'option_title': together['option_title'],
-                    'extensions': together['extensions'],
-                  });
-                  print("Booking option: ${together['book_with']}");
-                } else {
-                  print("Error: Missing required fields in 'together'.");
-                }
+          for (var option in bookingOptions) {
+            var together = option['together'] as Map<String, dynamic>?;
+            if (together != null) {
+              if (together.containsKey('book_with') && together.containsKey('airline_logos')) {
+                var bookingOptionData = BookingOptions.fromJson(together);
+                flightDetails.add({
+                  'book_with': bookingOptionData.bookWith,
+                  'airline_logos': bookingOptionData.airlineLogos,
+                  'marketed_as': together['marketed_as'],
+                  'price': together['price'],
+                  'local_prices': together['local_prices'],
+                  'baggage_prices': together['baggage_prices'],
+                  'booking_request': together['booking_request'],
+                  'option_title': together['option_title'],
+                  'extensions': together['extensions'],
+                });
+                print("Booking option: ${together['book_with']}");
               } else {
-                print("Error: 'together' is null.");
+                print("Error: Missing required fields in 'together'.");
               }
+            } else {
+              print("Error: 'together' is null.");
             }
           }
-        } else {
+                } else {
           print("Error: 'booking_options' not found in the response.");
         }
 

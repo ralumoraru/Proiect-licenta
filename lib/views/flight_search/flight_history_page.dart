@@ -24,6 +24,8 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
 
+    print('Token: $token');
+
     if (token == null) {
       print('No token found!');
       return;
@@ -48,21 +50,106 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
     }
   }
 
+  String getDayAndDate(String date) {
+    final parsedDate = DateTime.parse(date);
+    final dayName = _getDayName(parsedDate.weekday);
+    final monthName = _getMonthName(parsedDate.month);
+    return "$dayName, ${parsedDate.day} $monthName";
+  }
+
+  String getHourAndMinute(String date) {
+    final parsedDate = DateTime.parse(date);
+    return "${parsedDate.hour.toString().padLeft(2, '0')}:${parsedDate.minute.toString().padLeft(2, '0')}";
+  }
+
+  String formatDate(String date) {
+    DateTime parsedDate = DateTime.parse(date);
+    String dayName = _getDayName(parsedDate.weekday);
+    String formattedDate = "$dayName, ${parsedDate.day} ${_getMonthName(parsedDate.month)} ${parsedDate.hour.toString().padLeft(2, '0')}:${parsedDate.minute.toString().padLeft(2, '0')}";
+    return formattedDate;
+  }
+
+  String _getDayName(int day) {
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thur", "Fri", "Sat"];
+    return dayNames[day % 7];
+  }
+
+  String _getMonthName(int month) {
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    return monthNames[month - 1];
+  }
+
+
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final textScale = MediaQuery.of(context).textScaleFactor;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Flight Search History')),
+      appBar: AppBar(
+        title: const Text('Flight Search History'),
+        backgroundColor: Colors.blueAccent,
+      ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent),
+        ),
+      )
           : _history.isEmpty
-          ? const Center(child: Text('No search history found.'))
+          ? Center(
+        child: Text(
+          'No search history found.',
+          style: TextStyle(fontSize: 18 * textScale),
+        ),
+      )
           : ListView.builder(
         itemCount: _history.length,
         itemBuilder: (context, index) {
           final item = _history[index];
-          return ListTile(
-            title: Text('${item['departure']} → ${item['destination']}'),
-            subtitle: Text('Departure: ${item['departure_date']} Return: ${item['return_date']}'),
+          return Container(
+            padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 8),
+            child: Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              elevation: 5,
+              child: Padding(
+                padding: EdgeInsets.all(screenWidth * 0.04),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${item['departure']} → ${item['destination']}',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.04,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Departure: ${formatDate(item['departure_date'])}'
+                          '${item['return_date'] != null ? '\nReturn: ${formatDate(item['return_date'])}' : ''}',
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.04,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Icon(
+                        Icons.flight_takeoff,
+                        color: Colors.blueAccent,
+                        size: screenWidth * 0.08,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           );
         },
       ),

@@ -72,8 +72,6 @@ class FlightDetailsPage extends StatelessWidget {
                 _buildFlightSection("Return Trip", returnFlights!, returnLayovers, returnDuration),
               ],
               const SizedBox(height: 20),
-              _buildPriceSection(),
-              const SizedBox(height: 20),
               if (bookingDetails.isNotEmpty) _buildBookingOptions(),
             ],
           ),
@@ -221,7 +219,6 @@ class FlightDetailsPage extends StatelessWidget {
     return monthNames[month - 1];
   }
 
-  // Removes "Airport" from the airport name if it exists and if exists International in name short it to Intl
   String cutAirportName(String name) {
     if (name.contains("Airport")) {
       name = name.replaceAll("Airport", "").trim();
@@ -229,17 +226,13 @@ class FlightDetailsPage extends StatelessWidget {
     if (name.contains("International")) {
       name = name.replaceAll("International", "Intl").trim();
     }
-    return name;
-  }
 
-  Widget _buildPriceSection() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Text(
-        "Total Price: $price RON",
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-      ),
-    );
+    // Dacă numele este mai lung de 10 caractere, îl trunchiem și adăugăm '...'
+    if (name.length > 10) {
+      name = name.substring(0, 10) + '...';
+    }
+
+    return name;
   }
 
   Widget _buildBookingOptions() {
@@ -249,9 +242,9 @@ class FlightDetailsPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Booking Options:",
+            "Booking Options",
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.blueAccent,
               letterSpacing: 1.2,

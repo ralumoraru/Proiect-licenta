@@ -41,9 +41,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   // 1. Inițializare AnimationController în initState:
   AnimationController? _rotationController;
 
+  Map<String, dynamic>? _userData;
+
+  List<Flight> flights = [];
+
+  bool isIataCode(String input) {
+    return input.length == 3 && input == input.toUpperCase();
+  }
+
+
   @override
   void initState() {
     super.initState();
+    _getUserData();
     _fromController.addListener(_updateSwitchButtonVisibility);
     _toController.addListener(_updateSwitchButtonVisibility);
 
@@ -53,13 +63,51 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
+  Future<void> _getUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('token');
+
+    print('Token retrieved: $token'); // Verifică dacă token-ul este corect
+
+    if (token == null) {
+      print('No token found!');
+      return;
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/user'),
+        headers: {
+          'Authorization': 'Bearer $token', // Token-ul este transmis aici
+        },
+      );
+
+      // Verifică dacă răspunsul este de tip JSON
+      if (response.statusCode == 200) {
+        try {
+          final userData = jsonDecode(response.body);
+          print('User Data: $userData');
+          setState(() {
+            _userData = userData;
+          });
+        } catch (e) {
+          print('Error decoding JSON: $e');
+          print('Response body: ${response.body}');
+        }
+      } else {
+        print('Failed to load user data: ${response.statusCode}');
+        print('Response body: ${response.body}'); // Afișează conținutul complet al răspunsului
+      }
+    } catch (e) {
+      print('Error fetching user data: $e');
+    }
+  }
+
   @override
   void dispose() {
     _rotationController?.dispose();
     super.dispose();
   }
-
-
   void _swapFromTo() {
     if (_rotationController == null) return;
 
@@ -81,9 +129,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       });
     });
   }
-
-
-  // Funcția pentru actualizarea vizibilității butonului de swap
   void _updateSwitchButtonVisibility() {
     setState(() {
       showSwitchButton =
@@ -244,14 +289,14 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-  // Modified method to allow multiple choices and display them as Chips
   Widget _buildAutocompleteField(
       TextEditingController controller,
       String hint,
       IconData icon,
       FocusNode focusNode,
       List<String> selectedAirports,
-      ) {
+      )
+  {
     late TextEditingController _localController;
 
     return Container(
@@ -357,9 +402,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-
-
-
   Widget _buildDateField() {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -445,65 +487,46 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     );
   }
 
-
-  List<Flight> flights = [];
-
-  bool isIataCode(String input) {
-    return input.length == 3 && input == input.toUpperCase();
-  }
-
-
-  Future<bool> saveSearchHistory(String from, String to, String departureDate,
-      String? returnDate)
-  async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('token');
-
-    if (token == null) {
-      print('No token found!');
-      return false;
-    }
+  Future<List<dynamic>> getExistingFlightsForSearch({
+    required int userId,
+    required String departure,
+    required String destination,
+    required String departureDate,
+    String? returnDate,
+  }) async {
+    print('Fetching saved flights for $departure to $destination on $departureDate (return: $returnDate)');
+    final uri = Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/search-history/search').replace(
+      queryParameters: {
+        'userId': userId.toString(),
+        'departure': departure,
+        'destination': destination,
+        'departure_date': departureDate,
+        if (returnDate != null) 'return_date': returnDate,
+      },
+    );
 
     try {
-      final response = await http.post(
-        Uri.parse(
-            'https://viable-flamingo-advanced.ngrok-free.app/api/search-history'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'departure': from,
-          'destination': to,
-          'departure_date': departureDate,
-          'return_date': returnDate,
-        }),
-      );
-
+      final response = await http.get(uri);
       print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      print('Response body: ${response.body}');  // Adaugă acest print pentru a inspecta răspunsul complet.
 
       if (response.statusCode == 200) {
-        print('Search history saved successfully.');
-        return true;
+        final data = jsonDecode(response.body);
+        print('Data fetched from API: $data');  // Adaugă print pentru datele efective returnate de API
+        return data['flights'] ?? [];
       } else {
-        print('Failed to save search history: ${response.body}');
-        return false;
+        print('Server error: ${response.statusCode}');
+        return [];
       }
     } catch (e) {
-      print('Error saving search history: $e');
-      return false;
+      print('Error fetching existing flights: $e');
+      return [];
     }
-  }
-
-  String extractIataCode(String fullText) {
-    // Presupune că formatul e "Oras, Tara - COD"
-    final parts = fullText.split('-');
-    return parts.length > 1 ? parts.last.trim() : fullText;
   }
 
 
   Future<void> searchFlights() async {
+    print("From $_selectedFromAirports.first");
     String from = _selectedFromAirports.isNotEmpty
         ? extractIataCode(_selectedFromAirports.first)
         : '';
@@ -542,18 +565,50 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         type: flightType,
       );
 
+      List<dynamic> savedFlights = [];
+      String? departureAirportName;
+      String? destinationAirportName;
+
+// Asigură-te că codul IATA este transformat în numele aeroportului
+      if (_userData?['id'] != null) {
+        // Așteaptă și obține numele aeroporturilor pe baza codurilor IATA
+        departureAirportName = await apiService.getAirportNameByIataCode(_selectedFromAirports.first);
+        destinationAirportName = await apiService.getAirportNameByIataCode(_selectedToAirports.first);
+
+        print("Departure Airport: $departureAirportName, Destination Airport: $destinationAirportName");
+
+        // Apelul pentru obținerea zborurilor salvate
+        savedFlights = await getExistingFlightsForSearch(
+          userId: _userData!['id'],
+          departure: departureAirportName ?? '',  // Folosește numele aeroportului pentru plecare
+          destination: destinationAirportName ?? '',  // Folosește numele aeroportului pentru destinație
+          departureDate: departureDate,
+          returnDate: isReturnFlight ? returnDate : null,
+        );
+      }
+
+      final flightsForDate = savedFlights.where((flight) => flight['departureDate'] == departureDate).toList();
+      print("Saved flights for $departureDate: $flightsForDate");
+
+
+
+
       print("Total itineraries received: ${itineraries.length}");
       print("Itineraries details: $itineraries");  // Verifică cum arată datele aici
 
       if (itineraries.isNotEmpty) {
-        await saveSearchHistory(from, to, departureDate, returnDate);
 
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => FlightResultsPage(itineraries: itineraries),
+            builder: (context) => FlightResultsPage(
+              itineraries: itineraries,
+              userId: _userData?['id'],
+              savedFlights: savedFlights,
+            ),
           ),
         );
+
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -570,6 +625,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   }
 
+
+  String extractIataCode(String fullText) {
+    // Presupune că formatul e "Oras, Tara - COD"
+    final parts = fullText.split('-');
+    return parts.length > 1 ? parts.last.trim() : fullText;
+  }
 
 
 }

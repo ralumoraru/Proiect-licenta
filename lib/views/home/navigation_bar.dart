@@ -14,7 +14,7 @@ class _AppNavigationBarState extends State<AppNavigationBar> {
 
   final List<Widget> pages = [
     HomePage(title: 'Home Page'),
-    FlightHistoryPage(),
+    FlightHistoryPage(flightPairs: [],),
     SignOutPage(),
   ];
 

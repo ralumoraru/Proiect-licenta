@@ -30,7 +30,7 @@ class FlightSearchService {
       throw Exception('Could not find airport codes for the cities entered.');
     }
 
-    String apiKey = '50b072c2283ec747acbd3146e1ab9ea8e1fa2dd1d42365ab7372f785e68be5bc';
+    String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
     String apiUrl;
 
     if (type == 1 && returnDate != null) {
@@ -55,6 +55,7 @@ class FlightSearchService {
           '&type=$type'
           '&api_key=$apiKey';
     }
+    print("Generated API URL: $apiUrl");
 
     try {
       final response = await http.get(Uri.parse(apiUrl));
@@ -74,9 +75,7 @@ class FlightSearchService {
         if (bestFlightsJson != null && bestFlightsJson is List) {
           bestFlights = bestFlightsJson.map<BestFlight>((json) =>
               BestFlight.fromJson(json)).toList();
-          print('Sunt aici');
 
-          // Get the price for each flight using flight models and the flight it's in flight in json response
           for (var i = 0; i < bestFlights.length; i++) {
             var flightData = bestFlightsJson[i];
             int price = flightData['price'] ?? 0;
@@ -89,26 +88,17 @@ class FlightSearchService {
               print("Booking token: $bookingToken");
             }
           }
-
-
         }
-
-
          // Always add best flights to the final list
-      /*allFlights.addAll(bestFlights);
+      allFlights.addAll(bestFlights);
 
       // Always process and add other flights, even if best flights are found
       if (otherFlightsJson != null && otherFlightsJson is List) {
         List<BestFlight> otherFlights = otherFlightsJson.map<BestFlight>((json) => BestFlight.fromJson(json)).toList();
         allFlights.addAll(otherFlights); // Add all the other flights
       }
-        */
-        print("Sunt aici 1");
-        // If no best flights are found search for other flights
-        // ✅ Process other flights if no best flights are found
-        if (bestFlights.isEmpty && otherFlightsJson != null && otherFlightsJson is List) {
-          print("Processing other flights");
-          
+
+       if (bestFlights.isEmpty && otherFlightsJson != null && otherFlightsJson is List) {
           try {
             allFlights = otherFlightsJson.map<BestFlight>((json) => BestFlight.fromJson(json)).toList();
           } catch (e) {
@@ -316,7 +306,7 @@ class FlightSearchService {
       String? returnDate) async
   {
 
-    String apiKey = '50b072c2283ec747acbd3146e1ab9ea8e1fa2dd1d42365ab7372f785e68be5bc';
+    String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
 
     String formatDate(String dateTimeString) {
       try {

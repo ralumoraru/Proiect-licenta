@@ -143,7 +143,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Container(
+        body: SingleChildScrollView(  // Împachetăm tot conținutul într-un SingleChildScrollView
+        child: Container(
         height: screenHeight,
         child: Stack(
           children: [
@@ -284,6 +285,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               ),
             ),
           ],
+        ),
         ),
       ),
     );
@@ -589,9 +591,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
       final flightsForDate = savedFlights.where((flight) => flight['departureDate'] == departureDate).toList();
       print("Saved flights for $departureDate: $flightsForDate");
-
-
-
 
       print("Total itineraries received: ${itineraries.length}");
       print("Itineraries details: $itineraries");  // Verifică cum arată datele aici

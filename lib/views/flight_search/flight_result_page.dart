@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'package:flight_ticket_checker/views/flight_search/flight_details_page.dart';
+import 'package:flight_ticket_checker/views/flight_search/flight_pair_builder.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flight_ticket_checker/models/BestFlights.dart';
 import 'package:flight_ticket_checker/models/Flight.dart';
 import 'package:flight_ticket_checker/models/Layover.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'flight_search_page.dart';
 
@@ -27,13 +29,61 @@ class FlightResultsPage extends StatefulWidget {
 
 class _FlightResultsPageState extends State<FlightResultsPage> {
   Set<String> favorites = {};
+  late final FlightPairBuilder pairBuilder;
+  late final List<Map<String, dynamic>> flightPairs;
+  final Set<String> favoriteKeys = {};
+  final Map<String, bool> favoriteStates = {};
 
 
   @override
   void initState() {
     super.initState();
+    pairBuilder = FlightPairBuilder(widget.itineraries);
+    flightPairs = pairBuilder.buildFlightPairs();
+
+    for (var flight in widget.savedFlights) {
+      String? departure = flight['departure'];
+      String? destination = flight['destination'];
+      String? departureDate = flight['departureDate'];
+      String? arrivalDepartureDate = flight['arrivalDepartureDate'];
+
+      if (departure != null &&
+          destination != null &&
+          departureDate != null &&
+          arrivalDepartureDate != null)
+      {
+        String key = generateFlightKey(
+          departure: departure,
+          destination: destination,
+          departureDate: departureDate,
+          arrivalDepartureDate: arrivalDepartureDate,
+          returnDate: flight['returnDate'],
+          arrivalReturnDate: flight['arrivalReturnDate'],
+        );
+        favoriteStates[key] = true;
+      }
+
+    }
+
 
   }
+
+  String generateFlightKey({
+    required String departure,
+    required String destination,
+    required String departureDate,
+    required String arrivalDepartureDate,
+    String? returnDate,
+    String? arrivalReturnDate,
+  })
+  {
+    final format = DateFormat('yyyy-MM-dd HH:mm');
+    return '${departure}_${destination}_${format.format(DateTime.parse(departureDate))}_'
+        '${format.format(DateTime.parse(arrivalDepartureDate))}_'
+        '${returnDate != null ? format.format(DateTime.parse(returnDate)) : ''}_'
+        '${arrivalReturnDate != null ? format.format(DateTime.parse(arrivalReturnDate)) : ''}';
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -42,48 +92,22 @@ class _FlightResultsPageState extends State<FlightResultsPage> {
       return const Scaffold(body: Center(child: Text('No flights found.')));
     }
 
-    List<Map<String, dynamic>> flightPairs = [];
-
-    for (var outboundFlight in widget.itineraries) {
-      List<Layover> allOutboundLayovers = outboundFlight.flights.expand((f) => f.layover).toSet().toList();
-
-      if (outboundFlight.returnFlights.isNotEmpty) {
-        for (var returnFlightSet in outboundFlight.returnFlights) {
-          List<Layover> allReturnLayovers = returnFlightSet.expand((f) => f.layover).toSet().toList();
-
-          flightPairs.add({
-            "outboundFlight": outboundFlight,
-            "returnFlight": returnFlightSet,
-            "layovers": allOutboundLayovers,
-            "returnLayovers": allReturnLayovers,
-          });
-        }
-      } else {
-        flightPairs.add({
-          "outboundFlight": outboundFlight,
-          "returnFlight": null,
-          "layovers": allOutboundLayovers,
-          "returnLayovers": [],
-        });
-      }
-    }
-
-    String departureAirport = widget.itineraries.first.flights.first.departureAirport.id;
-    String arrivalAirport = widget.itineraries.first.flights.last.arrivalAirport.id;
-    String departureDate = _formatDate(widget.itineraries.first.flights.first.departureAirport.time);
-    String? returnDate = widget.itineraries.first.returnFlights.isNotEmpty
-        ? _formatDate(widget.itineraries.first.returnFlights.first.first.departureAirport.time)
-        : null;
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.blue,
         centerTitle: true,
         title: Column(
           children: [
-            Text("$departureAirport → $arrivalAirport", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            Text(returnDate != null ? "$departureDate - $returnDate" : departureDate,
-                style: const TextStyle(fontSize: 13, color: Colors.white70)),
+            Text(
+              "${pairBuilder.departureAirport} → ${pairBuilder.arrivalAirport}",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              pairBuilder.returnDate != null
+                  ? "${pairBuilder.departureDate} - ${pairBuilder.returnDate}"
+                  : pairBuilder.departureDate,
+              style: const TextStyle(fontSize: 13, color: Colors.white70),
+            ),
           ],
         ),
       ),
@@ -91,164 +115,77 @@ class _FlightResultsPageState extends State<FlightResultsPage> {
         itemCount: flightPairs.length,
         itemBuilder: (context, index) {
           var outboundFlight = flightPairs[index]["outboundFlight"] as BestFlight;
-          var returnFlightSet = flightPairs[index]["returnFlight"] as List<Flight>?;  // Safe cast to List<Flight> or null
-          var outboundLayovers = flightPairs[index]["layovers"] as List<Layover>;  // Safe cast to List<Layover>
+          var returnFlightSet = flightPairs[index]["returnFlight"] as List<Flight>?;
+          var outboundLayovers = flightPairs[index]["layovers"] as List<Layover>;
           var returnLayovers = returnFlightSet != null && returnFlightSet.isNotEmpty
               ? flightPairs[index]["returnLayovers"] as List<Layover>
-              : <Layover>[];  // If no return flights, return an empty list of Layovers
+              : <Layover>[];
+
+          String flightKey = _generateFlightKeyForPair(outboundFlight, returnFlightSet);
 
 
           return GestureDetector(
-              onTap: () async {
-                print("Tapped on flight card.");
+            onTap: () async {
+              print("Tapped on flight card.");
 
-                String bookingToken = "";
-                if (returnFlightSet != null && returnFlightSet.isNotEmpty) {
-                  bookingToken = returnFlightSet.first.bookingToken ?? "";
-                } else {
-                  bookingToken = outboundFlight.flights.first.bookingToken ?? "";
-                }
+              String bookingToken = returnFlightSet?.first.bookingToken ?? outboundFlight.flights.first.bookingToken ?? "";
 
-                print("Booking Token: $bookingToken");
-                if (bookingToken.isEmpty) {
-                  print("Error: Booking token is missing.");
-                  return;
-                }
+              if (bookingToken.isEmpty) {
+                print("Error: Booking token is missing.");
+                return;
+              }
 
-                FlightSearchService flightSearchService = FlightSearchService();
-                var details = await flightSearchService.fetchBookingDetails(
-                  bookingToken,
-                  outboundFlight.flights.first.departureAirport.id,
-                  outboundFlight.flights.last.arrivalAirport.id,
-                  outboundFlight.flights.first.departureAirport.time,
-                  outboundFlight.returnFlights.isNotEmpty
-                      ? outboundFlight.returnFlights.first.first.departureAirport.time
-                      : null,
-                );
+              FlightSearchService flightSearchService = FlightSearchService();
+              var details = await flightSearchService.fetchBookingDetails(
+                bookingToken,
+                outboundFlight.flights.first.departureAirport.id,
+                outboundFlight.flights.last.arrivalAirport.id,
+                outboundFlight.flights.first.departureAirport.time,
+                outboundFlight.returnFlights.isNotEmpty
+                    ? outboundFlight.returnFlights.first.first.departureAirport.time
+                    : null,
+              );
 
-                print("Booking details received: $details");
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => FlightDetailsPage(
-                      itinerary: outboundFlight,
-                      returnFlights: returnFlightSet,
-                      price: returnFlightSet != null && returnFlightSet.isNotEmpty
-                          ? returnFlightSet.first.price
-                          : outboundFlight.flights.first.price,
-                      bookingDetails: details,
-                      outboundLayovers: outboundLayovers,
-                      returnLayovers: returnLayovers,
-                    ),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FlightDetailsPage(
+                    itinerary: outboundFlight,
+                    returnFlights: returnFlightSet,
+                    price: returnFlightSet != null && returnFlightSet.isNotEmpty
+                        ? returnFlightSet.first.price
+                        : outboundFlight.flights.first.price,
+                    bookingDetails: details,
+                    outboundLayovers: outboundLayovers,
+                    returnLayovers: returnLayovers,
                   ),
-                );
+                ),
+              );
+            },
+            child: FlightItineraryCard(
+              outboundFlight: outboundFlight,
+              returnFlightSet: returnFlightSet,
+              layovers: outboundLayovers,
+              returnLayovers: returnLayovers,
+              userId: widget.userId,
+              savedFlights: widget.savedFlights,
+              isFavorite: favoriteStates[flightKey] ?? false,
+              onFavoriteToggle: (newValue) {
+                setState(() {
+                  favoriteStates[flightKey] = newValue;
+                });
               },
-              child: FlightItineraryCard(
-                outboundFlight: outboundFlight,
-                returnFlightSet: returnFlightSet,
-                layovers: outboundLayovers,
-                returnLayovers: returnLayovers,
-                userId: widget.userId,
-                savedFlights: widget.savedFlights,
-              ),
+            ),
           );
         },
       ),
     );
   }
 
-  String _formatDate(String dateTime) {
-    try {
-      DateTime parsedDate = DateTime.parse(dateTime);
-      return DateFormat("dd MMM").format(parsedDate);
-    } catch (e) {
-      return "Unknown";
-    }
-  }
-
-  String _formatDateTime(String dateTime) {
-    try {
-      DateTime parsedDate = DateTime.parse(dateTime);
-      return DateFormat("yyyy-MM-dd HH:mm").format(parsedDate);
-    } catch (e) {
-      return "Invalid Date";
-    }
-  }
-
-}
-
-Future<void> saveFlightSearch({
-  required int userId,
-  required String departure,
-  required String destination,
-  required String departureDate,
-  required String arrivalDepartureDate,
-  String? returnDate,
-  String? arrivalReturnDate,
-}) async
-{
-  final url = Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/search-history/store');
-
-  final response = await http.post(
-    url,
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: jsonEncode({
-      'user_id': userId,
-      'departure': departure,
-      'destination': destination,
-      'departure_date': departureDate,
-      'arrival_departure_date': arrivalDepartureDate,
-      'return_date': returnDate,
-      'arrival_return_date': arrivalReturnDate,
-    }),
-  );
-
-  if (response.statusCode == 200 || response.statusCode == 201) {
-    print('Search saved successfully');
-  } else {
-    print('Failed to save search: ${response.body}');
+  String _generateFlightKeyForPair(BestFlight outboundFlight, List<Flight>? returnFlightSet) {
+    return "${outboundFlight.flights.first.departureAirport.name}_${outboundFlight.flights.last.arrivalAirport.name}_${outboundFlight.flights.first.departureAirport.time}_${outboundFlight.flights.last.departureAirport.time}_${returnFlightSet?.first.departureAirport.time ?? ''}";
   }
 }
-
-Future<void> deleteSavedFlight({
-  required int userId,
-  required String departure,
-  required String destination,
-  required String departureDate,
-  required String arrivalDepartureDate,
-  String? returnDate,
-  String? arrivalReturnDate,
-}) async {
-  final url = Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/search-history/delete');
-
-  final response = await http.delete(
-    url,
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    },
-    body: jsonEncode({
-      'user_id': userId,
-      'departure': departure,
-      'destination': destination,
-      'departure_date': departureDate,
-      'arrival_departure_date': arrivalDepartureDate,
-      'return_date': returnDate,
-      'arrival_return_date': arrivalReturnDate,
-    }),
-  );
-
-  if (response.statusCode == 200 || response.statusCode == 204) {
-    print('Search deleted successfully');
-  } else {
-    print('Failed to delete search: ${response.body}');
-  }
-}
-
 
 class FlightItineraryCard extends StatefulWidget {
   final BestFlight outboundFlight;
@@ -257,6 +194,8 @@ class FlightItineraryCard extends StatefulWidget {
   final List<Layover> returnLayovers;
   final int userId;
   final List<dynamic> savedFlights;
+  final bool isFavorite;
+  final Function(bool) onFavoriteToggle;
 
   const FlightItineraryCard({
     super.key,
@@ -266,6 +205,8 @@ class FlightItineraryCard extends StatefulWidget {
     required this.returnLayovers,
     required this.userId,
     required this.savedFlights,
+    required this.isFavorite,
+    required this.onFavoriteToggle,
   });
 
   @override
@@ -274,66 +215,83 @@ class FlightItineraryCard extends StatefulWidget {
 
 class _FlightItineraryCardState extends State<FlightItineraryCard> {
   bool _isFavorite = false;
+  Set<String> favoriteFlightKeys = {};
+  late SharedPreferences prefs;
+  String flightKey = "";
 
   @override
   void initState() {
     super.initState();
+    print("initState called for FlightResultsPage");
 
-    // Detalii despre aeroporturile de plecare și destinație
     String dep = widget.outboundFlight.flights.first.departureAirport.name;
     String dest = widget.outboundFlight.flights.last.arrivalAirport.name;
-    print("Departure: $dep, Destination: $dest");
-
-    // Datele de plecare și de returnare
-    String depDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(widget.outboundFlight.flights.first.departureAirport.time));
-    String? retDate = widget.returnFlightSet != null && widget.returnFlightSet!.isNotEmpty
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(widget.returnFlightSet!.first.departureAirport.time))
+    String depDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(
+        widget.outboundFlight.flights.first.departureAirport.time));
+    String? retDate = widget.returnFlightSet != null &&
+        widget.returnFlightSet!.isNotEmpty
+        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(
+        DateTime.parse(widget.returnFlightSet!.first.departureAirport.time))
         : null;
-    print("Departure Date: $depDate, Return Date: $retDate");
-
-    // Datele de arrival pentru plecare
-    String? arrivalDepDate = widget.outboundFlight.flights.last.arrivalAirport.time != null
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(widget.outboundFlight.flights.last.arrivalAirport.time))
+    String? arrivalDepDate = widget.outboundFlight.flights.last.arrivalAirport
+        .time != null
+        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(
+        DateTime.parse(widget.outboundFlight.flights.last.arrivalAirport.time))
         : null;
-
-    // Datele de arrival pentru returnare (dacă există)
-    String? arrivalRetDate = widget.returnFlightSet != null && widget.returnFlightSet!.isNotEmpty
+    String? arrivalRetDate = widget.returnFlightSet != null &&
+        widget.returnFlightSet!.isNotEmpty
         ? widget.returnFlightSet!.last.arrivalAirport.time != null
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.parse(widget.returnFlightSet!.last.arrivalAirport.time))
+        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(
+        DateTime.parse(widget.returnFlightSet!.last.arrivalAirport.time))
         : null
         : null;
 
-    print("Arrival Departure Date: $arrivalDepDate, Arrival Return Date: $arrivalRetDate");
-
-    // Iterează prin zborurile salvate
     for (var flight in widget.savedFlights) {
-      print("Checking flight: $flight");
-
-      // Verifică dacă zborul curent are aceleași detalii de plecare, destinație și date
       bool matchesDeparture = flight['departure'] == dep &&
           flight['destination'] == dest &&
           flight['departure_date'] == depDate;
 
-      // Verifică dacă există un return flight (dacă există)
-      bool matchesReturn = retDate == null || (flight['return_date'] != null && flight['return_date'] == retDate);
-
-      // Verifică dacă datele de arrival pentru plecare și returnare corespund
-      bool matchesArrivalDeparture = arrivalDepDate == null || (flight['arrival_departure_date'] != null && flight['arrival_departure_date'] == arrivalDepDate);
-      bool matchesArrivalReturn = arrivalRetDate == null || (flight['arrival_return_date'] != null && flight['arrival_return_date'] == arrivalRetDate);
-
-      // Dacă toate condițiile sunt îndeplinite, marchează ca favorit
-      if (matchesDeparture && matchesReturn && matchesArrivalDeparture && matchesArrivalReturn) {
+      bool matchesReturn = (flight['return_date'] == null && retDate == null) ||
+          (flight['return_date'] != null && flight['return_date'] == retDate);
+      bool matchesArrivalDeparture = (flight['arrival_departure_date'] !=
+          null && flight['arrival_departure_date'] == arrivalDepDate);
+      bool matchesArrivalReturn = (flight['arrival_return_date'] == null &&
+          arrivalRetDate == null) || (flight['arrival_return_date'] != null &&
+          flight['arrival_return_date'] == arrivalRetDate);
+      if (matchesDeparture && matchesReturn && matchesArrivalDeparture &&
+          matchesArrivalReturn) {
         setState(() {
-          _isFavorite = true;  // Setează variabila _isFavorite pe true
+          _isFavorite = true;
         });
         break;
       }
     }
+    flightKey = '${dep}_${dest}_${depDate}_${arrivalDepDate}_${retDate}_${arrivalRetDate}';
+
+    _loadFavoriteFlights(); // Încarcă starea favoritelor la inițializare
+
+
+
   }
 
+    // Încarcă starea favoritelor din SharedPreferences
+  Future<void> _loadFavoriteFlights() async {
+    prefs = await SharedPreferences.getInstance();
+    List<String>? savedFavorites = prefs.getStringList('favoriteFlights');
 
+    setState(() {
+      favoriteFlightKeys = savedFavorites?.toSet() ?? {};
+      _isFavorite = favoriteFlightKeys.contains(flightKey);
+    });
+  }
 
+   Future<void> _saveFavoriteFlights() async {
+      await prefs.setStringList('favoriteFlights', favoriteFlightKeys.toList());
+    }
 
+  bool isFavorite(String flightKey) {
+    return favoriteFlightKeys.contains(flightKey);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -363,21 +321,29 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
                 ),
                 IconButton(
                   icon: Icon(
-                    _isFavorite ? Icons.favorite : Icons.favorite_border, // Change icon based on _isFavorite
-                    color: _isFavorite ? Colors.red : null, // Red color if it's a favorite
+                    _isFavorite || isFavorite(flightKey) ? Icons.favorite : Icons.favorite_border, // Change icon based on _isFavorite
+                    color: _isFavorite || isFavorite(flightKey) ? Colors.red : null, // Red color if it's a favorite
                   ),
                   onPressed: () async {
                     final outbound = widget.outboundFlight.flights;
                     final returnFlights = widget.returnFlightSet;
 
                     final departureAirportName = outbound.first.departureAirport.name;
+                    final despartureAirportId =  widget.outboundFlight.flights.first.departureAirport.id;
+                    print("Departure Airport ID: $despartureAirportId");
                     final destinationAirportName = outbound.last.arrivalAirport.name;
+                    final destinationAirportId =  widget.outboundFlight.flights.last.arrivalAirport.id;
 
                     final departureDate = outbound.first.departureAirport.time;
                     final arrivalDepartureDate = outbound.last.arrivalAirport.time;
 
                     final returnDate = returnFlights?.first.departureAirport.time;
                     final arrivalReturnDate = returnFlights?.last.arrivalAirport.time;
+
+                    // Trunchiază datele la doar data (fără ora)
+                    String formattedDepartureDate = departureDate.split(' ').first;
+                    String? formattedReturnDate = returnDate?.split(' ').first;
+
 
                     print("User Id: ${widget.userId}");
 
@@ -392,24 +358,36 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
                         returnDate: returnDate,
                         arrivalReturnDate: arrivalReturnDate,
                       );
+                      favoriteFlightKeys.remove(flightKey);
+                      setState(() {
+                        _isFavorite = false;
+                      });
                       print("Deleted flight: $departureAirportName to $destinationAirportName");
                     } else {
                       // Otherwise, save it again
                       await saveFlightSearch(
                         userId: widget.userId,
                         departure: departureAirportName,
+                        departureId: despartureAirportId,
                         destination: destinationAirportName,
+                        destinationId: destinationAirportId,
                         departureDate: departureDate,
+                        formattedDepartureDate: formattedDepartureDate,
                         arrivalDepartureDate: arrivalDepartureDate,
                         returnDate: returnDate,
+                        formattedReturnDate: formattedReturnDate,
                         arrivalReturnDate: arrivalReturnDate,
+                        outboundFlights: widget.outboundFlight.flights,
+                        returnFlights: widget.returnFlightSet,
                       );
+                      favoriteFlightKeys.add(flightKey);
+                      setState(() {
+                        _isFavorite = true;
+                      });
                       print("Saved flight: $departureAirportName to $destinationAirportName");
                     }
-
-                    setState(() {
-                      _isFavorite = !_isFavorite;  // Toggle favorite status
-                    });
+                    // Salvează starea favoritelor în SharedPreferences
+                    await _saveFavoriteFlights();
                   },
                 )
               ],
@@ -428,15 +406,6 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
         ),
       ),
     );
-  }
-
-  String _formatDateTime(String dateTime) {
-    try {
-      DateTime parsedDate = DateTime.parse(dateTime);
-      return DateFormat("yyyy-MM-dd HH:mm").format(parsedDate); // Full date and time
-    } catch (e) {
-      return "Invalid Date";
-    }
   }
 
   Widget buildFlightDetails(String title, List<Flight> flights, List<Layover> layovers, double fontSize) {
@@ -565,5 +534,173 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
     } catch (e) {
       return 'Invalid Time';
     }
+  }
+}
+
+Future<void> saveFlightSearch({
+  required int userId,
+  required String departure,
+  required String departureId,
+  required String destination,
+  required String destinationId,
+  required String departureDate,
+  required String formattedDepartureDate,
+  required String arrivalDepartureDate,
+  String? returnDate,
+  String? formattedReturnDate,
+  String? arrivalReturnDate,
+  required List<Flight> outboundFlights,
+  List<Flight>? returnFlights,
+}) async {
+  final url = Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/search-history/store');
+
+  final response = await http.post(
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: jsonEncode({
+      'user_id': userId,
+      'departure': departure,
+      'destination': destination,
+      'departure_date': departureDate,
+      'arrival_departure_date': arrivalDepartureDate,
+      'return_date': returnDate,
+      'arrival_return_date': arrivalReturnDate,
+    }),
+  );
+
+  if (response.statusCode == 200 || response.statusCode == 201) {
+    final responseData = jsonDecode(response.body);
+    final int searchHistoryId = responseData['search_history_id'];
+
+    print('Search saved successfully with ID $searchHistoryId');
+
+    FlightSearchService flightSearchService = FlightSearchService();
+
+    // Fetch itineraries
+    List<BestFlight> itineraries = await flightSearchService.searchFlights(
+      from: departureId,
+      to: destinationId,
+      departureDate: formattedDepartureDate,
+      isReturnFlight: returnDate != null,
+      returnDate: formattedReturnDate,
+      type: returnDate != null ? 1 : 0,
+    );
+
+    FlightPairBuilder pairBuilder = FlightPairBuilder(itineraries);
+    List<Map<String, dynamic>> flightPairs = pairBuilder.buildFlightPairs();
+
+    final expectedDepTime = DateTime.parse(departureDate);
+    final expectedArrDepTime = DateTime.parse(arrivalDepartureDate);
+    final expectedRetTime = returnDate != null ? DateTime.parse(returnDate) : null;
+    final expectedArrRetTime = arrivalReturnDate != null ? DateTime.parse(arrivalReturnDate) : null;
+
+    for (var pair in flightPairs) {
+      final outbound = pair['outboundFlight'] as BestFlight;
+      final returnSet = pair['returnFlight'] as List<Flight>?;
+
+      final depTime = DateTime.parse(outbound.flights.first.departureAirport.time);
+      final arrDepTime = DateTime.parse(outbound.flights.last.arrivalAirport.time);
+
+      final isDepartureMatch = depTime.isAtSameMomentAs(expectedDepTime);
+      final isArrivalDepMatch = arrDepTime.isAtSameMomentAs(expectedArrDepTime);
+
+      bool isReturnMatch = true;
+
+      if (expectedRetTime != null && expectedArrRetTime != null && returnSet != null && returnSet.isNotEmpty) {
+        final retDepTime = DateTime.parse(returnSet.first.departureAirport.time);
+        final arrRetTime = DateTime.parse(returnSet.last.arrivalAirport.time);
+
+        isReturnMatch = retDepTime.isAtSameMomentAs(expectedRetTime) &&
+            arrRetTime.isAtSameMomentAs(expectedArrRetTime);
+      }
+
+      if (isDepartureMatch && isArrivalDepMatch && isReturnMatch) {
+        final price = returnSet != null && returnSet.isNotEmpty
+            ? returnSet.first.price
+            : outbound.flights.first.price;
+
+        await sendPricesToBackend(
+          searchHistoryId: searchHistoryId,
+          price: price,
+        );
+
+        print('Matching flight found and price sent: $price');
+        break; // Stop after first match
+      }
+    }
+  } else {
+    print('Failed to save search: ${response.body}');
+  }
+}
+
+Future<void> sendPricesToBackend({
+  required int searchHistoryId,
+  required int price,
+}) async {
+  final url = Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/search-history/prices');
+
+  final response = await http.post(
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: jsonEncode({
+      'search_history_id': searchHistoryId,
+      'prices': [
+        {
+          'price': price,
+        }
+      ],
+    }),
+  );
+
+  if (response.statusCode == 200 || response.statusCode == 201) {
+    print("Price saved successfully for search history ID $searchHistoryId");
+  } else {
+    print("Failed to save price: ${response.statusCode} - ${response.body}");
+  }
+}
+
+
+
+
+
+Future<void> deleteSavedFlight({
+  required int userId,
+  required String departure,
+  required String destination,
+  required String departureDate,
+  required String arrivalDepartureDate,
+  String? returnDate,
+  String? arrivalReturnDate,
+}) async
+{
+  final url = Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/search-history/delete');
+
+  final response = await http.delete(
+    url,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: jsonEncode({
+      'user_id': userId,
+      'departure': departure,
+      'destination': destination,
+      'departure_date': departureDate,
+      'arrival_departure_date': arrivalDepartureDate,
+      'return_date': returnDate,
+      'arrival_return_date': arrivalReturnDate,
+    }),
+  );
+
+  if (response.statusCode == 200 || response.statusCode == 204) {
+    print('Search deleted successfully');
+  } else {
+    print('Failed to delete search: ${response.body}');
   }
 }

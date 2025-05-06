@@ -41,11 +41,11 @@ dependencies:
   fluttertoast: ^8.2.8
   google_fonts: ^6.2.1
   http: ^1.2.2
-  connectivity_plus: ^4.0.0
+  connectivity_plus: ^6.1.4
   shared_preferences: ^2.3.4
   google_sign_in: ^6.2.2
   intl: ^0.20.2
-  syncfusion_flutter_datepicker: ^28.2.11+1
+  syncfusion_flutter_datepicker: ^29.1.38
   url_launcher: ^6.3.1
   auto_size_text: ^3.0.0
 
@@ -60,7 +60,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^4.0.0
+  flutter_lints: ^5.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

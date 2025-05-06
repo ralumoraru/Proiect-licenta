@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class FlightHistoryPage extends StatefulWidget {
-  const FlightHistoryPage({super.key});
+  final List<Map<String, dynamic>> flightPairs;
+  const FlightHistoryPage({super.key, required this.flightPairs});
 
   @override
   State<FlightHistoryPage> createState() => _FlightHistoryPageState();
@@ -50,18 +51,6 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
     }
   }
 
-  String getDayAndDate(String date) {
-    final parsedDate = DateTime.parse(date);
-    final dayName = _getDayName(parsedDate.weekday);
-    final monthName = _getMonthName(parsedDate.month);
-    return "$dayName, ${parsedDate.day} $monthName";
-  }
-
-  String getHourAndMinute(String date) {
-    final parsedDate = DateTime.parse(date);
-    return "${parsedDate.hour.toString().padLeft(2, '0')}:${parsedDate.minute.toString().padLeft(2, '0')}";
-  }
-
   String formatDate(String date) {
     DateTime parsedDate = DateTime.parse(date);
     String dayName = _getDayName(parsedDate.weekday);
@@ -81,7 +70,6 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
     ];
     return monthNames[month - 1];
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -107,51 +95,72 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
         ),
       )
           : ListView.builder(
-        itemCount: _history.length,
-        itemBuilder: (context, index) {
-          final item = _history[index];
-          return Container(
-            padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 8),
-            child: Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              elevation: 5,
-              child: Padding(
-                padding: EdgeInsets.all(screenWidth * 0.04),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${item['departure']} → ${item['destination']}',
-                      style: TextStyle(
-                        fontSize: screenWidth * 0.04,
-                        fontWeight: FontWeight.bold,
+          itemCount: _history.length,
+          itemBuilder: (context, index) {
+            final item = _history[index];
+            final prices = item['prices'] ?? [];
+
+            return Container(
+              padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.04, vertical: 8),
+              child: Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                elevation: 5,
+                child: Padding(
+                  padding: EdgeInsets.all(screenWidth * 0.04),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${item['departure']} → ${item['destination']}',
+                        style: TextStyle(
+                          fontSize: screenWidth * 0.04,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Departure: ${formatDate(item['departure_date'])}'
-                          '${item['return_date'] != null ? '\nReturn: ${formatDate(item['return_date'])}' : ''}',
-                      style: TextStyle(
-                        fontSize: screenWidth * 0.04,
-                        color: Colors.black54,
+                      const SizedBox(height: 8),
+                      Text(
+                        'Departure: ${formatDate(item['departure_date'])}'
+                            '${item['return_date'] != null ? '\nReturn: ${formatDate(item['return_date'])}' : ''}',
+                        style: TextStyle(
+                          fontSize: screenWidth * 0.04,
+                          color: Colors.black54,
+                        ),
                       ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Icon(
-                        Icons.flight_takeoff,
-                        color: Colors.blueAccent,
-                        size: screenWidth * 0.08,
+                      const SizedBox(height: 8),
+                      if (prices.isNotEmpty) ...[
+                        const Text("Price Table:", style: TextStyle(fontWeight: FontWeight.bold)),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            columns: const [
+                              DataColumn(label: Text('Price')),
+                            ],
+                            rows: prices.map<DataRow>((priceItem) {
+                              return DataRow(
+                                cells: [
+                                  DataCell(Text('${priceItem['price']} €')),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Icon(
+                          Icons.flight_takeoff,
+                          color: Colors.blueAccent,
+                          size: screenWidth * 0.08,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          }
       ),
     );
   }

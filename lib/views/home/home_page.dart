@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flight_ticket_checker/models/BestFlights.dart';
+import 'package:flight_ticket_checker/services/currency_provider.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:flight_ticket_checker/models/Flight.dart';
@@ -7,6 +8,7 @@ import 'package:flight_ticket_checker/views/flight_search/flight_search_page.dar
 import 'package:flutter/material.dart';
 import 'package:flight_ticket_checker/views/flight_search/flight_result_page.dart';
 import 'package:flight_ticket_checker/services/iata_code_api.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 
@@ -49,11 +51,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return input.length == 3 && input == input.toUpperCase();
   }
 
+  bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _getUserData();
+
     _fromController.addListener(_updateSwitchButtonVisibility);
     _toController.addListener(_updateSwitchButtonVisibility);
 
@@ -62,6 +66,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       duration: const Duration(milliseconds: 400),
     );
   }
+
 
   Future<void> _getUserData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -137,9 +142,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
     final double screenWidth = MediaQuery.of(context).size.width;
+
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -265,12 +276,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         const SizedBox(height: 20),
                         // Butonul de căutare
                         Center(
-                          child: ElevatedButton(
+                          child: isLoading
+                              ? const CircularProgressIndicator()
+                              : ElevatedButton(
                             onPressed: searchFlights,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.lightBlueAccent,
-                              padding:
-                              const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
                             ),
                             child: const Text(
                               'Search Flights',
@@ -495,7 +507,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     required String destination,
     required String departureDate,
     String? returnDate,
-  }) async {
+  }) async
+  {
     print('Fetching saved flights for $departure to $destination on $departureDate (return: $returnDate)');
     final uri = Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/search-history/search').replace(
       queryParameters: {
@@ -526,9 +539,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
-
   Future<void> searchFlights() async {
-    print("From $_selectedFromAirports.first");
+    setState(() {
+      isLoading = true;
+    });
+
     String from = _selectedFromAirports.isNotEmpty
         ? extractIataCode(_selectedFromAirports.first)
         : '';
@@ -544,6 +559,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Please fill in all required fields.'),
       ));
+      setState(() {
+        isLoading = false;
+      });
       return;
     }
 
@@ -551,12 +569,18 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Please select a return date for a round trip.'),
       ));
+      setState(() {
+        isLoading = false;
+      });
       return;
     }
 
     try {
       int flightType = isReturnFlight ? 1 : 2;
       FlightSearchService flightSearchService = FlightSearchService();
+      String currency = Provider.of<CurrencyProvider>(context, listen: false).currency;
+      print("Currency used for search: $currency");
+
 
       List<BestFlight> itineraries = await flightSearchService.searchFlights(
         from: from,
@@ -565,21 +589,19 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         isReturnFlight: isReturnFlight,
         returnDate: isReturnFlight ? returnDate : null,
         type: flightType,
+        currency: currency,
       );
 
       List<dynamic> savedFlights = [];
       String? departureAirportName;
       String? destinationAirportName;
 
-// Asigură-te că codul IATA este transformat în numele aeroportului
       if (_userData?['id'] != null) {
-        // Așteaptă și obține numele aeroporturilor pe baza codurilor IATA
         departureAirportName = await apiService.getAirportNameByIataCode(_selectedFromAirports.first);
         destinationAirportName = await apiService.getAirportNameByIataCode(_selectedToAirports.first);
 
         print("Departure Airport: $departureAirportName, Destination Airport: $destinationAirportName");
 
-        // Apelul pentru obținerea zborurilor salvate
         savedFlights = await getExistingFlightsForSearch(
           userId: _userData!['id'],
           departure: departureAirportName ?? '',  // Folosește numele aeroportului pentru plecare
@@ -591,7 +613,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
       final flightsForDate = savedFlights.where((flight) => flight['departureDate'] == departureDate).toList();
       print("Saved flights for $departureDate: $flightsForDate");
-
       print("Total itineraries received: ${itineraries.length}");
       print("Itineraries details: $itineraries");  // Verifică cum arată datele aici
 
@@ -607,7 +628,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             ),
           ),
         );
-
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -620,13 +640,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error home: $e')),
       );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
-
   }
 
 
   String extractIataCode(String fullText) {
-    // Presupune că formatul e "Oras, Tara - COD"
     final parts = fullText.split('-');
     return parts.length > 1 ? parts.last.trim() : fullText;
   }

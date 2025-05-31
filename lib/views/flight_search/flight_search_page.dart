@@ -1,4 +1,3 @@
-import 'package:flight_ticket_checker/models/AmadeusFlight.dart';
 import 'package:flight_ticket_checker/models/BookingOptions.dart';
 import 'package:flight_ticket_checker/models/Layover.dart';
 import 'package:http/http.dart' as http;
@@ -19,6 +18,7 @@ class FlightSearchService {
     required bool isReturnFlight,
     String? returnDate,
     required int type,
+    required String currency,
   }) async
   {
     String? fromCode = isIataCode(from) ? from : await apiService
@@ -36,7 +36,7 @@ class FlightSearchService {
     if (type == 1 && returnDate != null) {
       apiUrl = 'https://serpapi.com/search.json?'
           '&arrival_id=$toCode'
-          '&currency=RON'
+          '&currency=$currency'
           '&departure_id=$fromCode'
           '&engine=google_flights'
           '&hl=en'
@@ -47,7 +47,7 @@ class FlightSearchService {
     } else {
       apiUrl = 'https://serpapi.com/search.json?'
           '&arrival_id=$toCode'
-          '&currency=RON'
+          '&currency=$currency'
           '&departure_id=$fromCode'
           '&engine=google_flights'
           '&hl=en'
@@ -220,83 +220,6 @@ class FlightSearchService {
     return [];
   }
 
-  Future<List<AmadeusFlight>> searchFlightsAmadeus({
-    required String from,
-    required String to,
-    required String departureDate,
-    required bool isReturnFlight,
-    String? returnDate,
-    required int type,
-  }) async
-  {
-    String? fromCode = isIataCode(from) ? from : await apiService
-        .getAirportCodeByCity(from);
-    String? toCode = isIataCode(to) ? to : await apiService
-        .getAirportCodeByCity(to);
-
-    if (fromCode == null || toCode == null) {
-      throw Exception('Could not find airport codes for the cities entered.');
-    }
-
-    String apiKey = 'm4P5xIeJw3GCwZGjQVg5iqA11m80WpxG';
-    String apiSecret = 'TT4Jg67cZ9hBSptm';
-
-    String? accessToken = await getAccessToken(apiKey, apiSecret);
-    if (accessToken == null) {
-      throw Exception('Could not get access token.');
-    }
-
-    print("Access token: $accessToken");
-    final url = Uri.parse(
-        'https://test.api.amadeus.com/v2/shopping/flight-offers?originLocationCode=$fromCode&destinationLocationCode=$toCode&departureDate=$departureDate&returnDate=$returnDate&adults=1&max=5');
-
-    final response = await http.get(
-      url,
-      headers: {
-        'Authorization': 'Bearer $accessToken',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final fullJson = json.decode(response.body);
-
-      // Pretty print the whole response
-      const JsonEncoder encoder = JsonEncoder.withIndent('  ');
-      final prettyJson = encoder.convert(fullJson);
-      print('Full Amadeus Response:\n$prettyJson');
-
-      final List flights = fullJson['data'];
-      return flights.map((flightJson) => AmadeusFlight.fromJson(flightJson)).toList();
-
-      // You can return [] here or parse the data after previewing
-    } else {
-      print('Flight search failed: ${response.body}');
-    }
-
-
-
-    return [];
-  }
-
-  Future<String?> getAccessToken(String apiKey, String apiSecret) async {
-    final response = await http.post(
-      Uri.parse('https://test.api.amadeus.com/v1/security/oauth2/token'),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: {
-        'grant_type': 'client_credentials',
-        'client_id': apiKey,
-        'client_secret': apiSecret,
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['access_token'];
-    } else {
-      print('Auth failed: ${response.body}');
-      return null;
-    }
-  }
 
   Future<List<Map<String, dynamic>>> fetchBookingDetails(
       String bookingToken,

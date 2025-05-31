@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -11,21 +13,28 @@ class FlightHistoryPage extends StatefulWidget {
   State<FlightHistoryPage> createState() => _FlightHistoryPageState();
 }
 
-class _FlightHistoryPageState extends State<FlightHistoryPage> {
+class _FlightHistoryPageState extends State<FlightHistoryPage> with AutomaticKeepAliveClientMixin {
   List<dynamic> _history = [];
   bool _isLoading = true;
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
-    _fetchHistory();
+  }
+
+  @override
+  bool get wantKeepAlive => true; // păstrăm starea dar reîncărcăm datele
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _fetchHistory(); // se apelează și când utilizatorul revine la tab
   }
 
   Future<void> _fetchHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
-
-    print('Token: $token');
 
     if (token == null) {
       print('No token found!');
@@ -39,8 +48,10 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
       );
 
       if (response.statusCode == 200) {
+        final newHistory = jsonDecode(response.body);
+
         setState(() {
-          _history = jsonDecode(response.body);
+          _history = newHistory;
           _isLoading = false;
         });
       } else {
@@ -50,6 +61,7 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
       print('Error fetching history: $e');
     }
   }
+
 
   String formatDate(String date) {
     DateTime parsedDate = DateTime.parse(date);
@@ -71,6 +83,7 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
     return monthNames[month - 1];
   }
 
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -81,7 +94,9 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
         title: const Text('Flight Search History'),
         backgroundColor: Colors.blueAccent,
       ),
-      body: _isLoading
+    body: RefreshIndicator(
+    onRefresh: _fetchHistory,
+    child: _isLoading
           ? Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent),
@@ -136,11 +151,14 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
                           child: DataTable(
                             columns: const [
                               DataColumn(label: Text('Price')),
+                              DataColumn(label: Text('Day & Time'))
                             ],
                             rows: prices.map<DataRow>((priceItem) {
                               return DataRow(
                                 cells: [
-                                  DataCell(Text('${priceItem['price']} €')),
+                                  DataCell(Text('${priceItem['price']} RON')),
+                                  DataCell(Text(formatDate(priceItem['created_at'])),
+                                  ),
                                 ],
                               );
                             }).toList(),
@@ -162,6 +180,7 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> {
             );
           }
       ),
+    ),
     );
   }
 }

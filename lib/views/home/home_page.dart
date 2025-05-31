@@ -157,166 +157,198 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final double screenHeight = MediaQuery.of(context).size.height;
     final double screenWidth = MediaQuery.of(context).size.width;
 
-
     return GestureDetector(
-        onTap: () {
-      // Ascunde tastatura și autocomplete-ul
-      FocusScopeNode currentFocus = FocusScope.of(context);
-      if (!currentFocus.hasPrimaryFocus && currentFocus.focusedChild != null) {
-        currentFocus.unfocus();
-      }
-    },
-    child: Scaffold(
-      backgroundColor: Colors.white,
+      onTap: () {
+        // Ascunde tastatura și autocomplete-ul
+        FocusScopeNode currentFocus = FocusScope.of(context);
+        if (!currentFocus.hasPrimaryFocus && currentFocus.focusedChild != null) {
+          currentFocus.unfocus();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
         body: SingleChildScrollView(  // Împachetăm tot conținutul într-un SingleChildScrollView
-        child: Container(
-        height: screenHeight,
-        child: Stack(
-          children: [
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30.0),
-                  bottomRight: Radius.circular(30.0),
-                ),
-                child: Image.asset(
-                  'assets/images/airplane.jpg',
-                  width: screenWidth,
-                  height: screenHeight * 0.35,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            Positioned(
-              top: screenHeight * 0.20,
-              left: screenWidth * 0.05,
-              right: screenWidth * 0.05,
-              child: SingleChildScrollView(
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: EdgeInsets.all(screenWidth * 0.05),
-                    width: screenWidth * 0.9,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+          child: Container(
+            height: screenHeight,
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(30.0),
+                      bottomRight: Radius.circular(30.0),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Butoanele pentru tipul de zbor (One-way sau Return)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    isReturnFlight = false;
-                                    _returnDateController.clear();
-                                  });
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: !isReturnFlight
-                                      ? Colors.lightBlueAccent
-                                      : Colors.grey,
-                                ),
-                                child: const Text('One-way'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    isReturnFlight = true;
-                                  });
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isReturnFlight
-                                      ? Colors.lightBlueAccent
-                                      : Colors.grey,
-                                ),
-                                child: const Text('Return'),
-                              ),
-                            ),
-                          ],
-                        ),
-                        // Câmpuri autocomplete pentru 'From' și 'To'
-                        Stack(
-                          alignment: Alignment.centerLeft,
-                          children: [
-                            Column(
-                              children: [
-                                // Câmpul pentru 'From'
-                                _buildAutocompleteField(
-                                    _fromController, 'From', Icons.flight_takeoff, _fromFocusNode, _selectedFromAirports),
-                                SizedBox(height: 10),
-                                if (showSwitchButton)
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      RotationTransition(
-                                        turns: _rotationController != null
-                                            ? Tween(begin: 0.0, end: 1.0).animate(
-                                          CurvedAnimation(
-                                            parent: _rotationController!,
-                                            curve: Curves.easeInOut,
-                                          ),
-                                        )
-                                            : const AlwaysStoppedAnimation(0.0),
-                                        child: IconButton(
-                                          icon: const Icon(Icons.swap_horiz),
-                                          onPressed: _rotationController != null ? _swapFromTo : null,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                else
-                                  const SizedBox.shrink(),
-                                // Câmpul pentru 'To'
-                                _buildAutocompleteField(
-                                    _toController, 'To', Icons.flight_land, _toFocusNode, _selectedToAirports),
-                              ],
-                            ),
-                          ],
-                        ),
-                        // Câmpul pentru date
-                        _buildDateField(),
-                        const SizedBox(height: 20),
-                        // Butonul de căutare
-                        Center(
-                          child: isLoading
-                              ? const CircularProgressIndicator()
-                              : ElevatedButton(
-                            onPressed: searchFlights,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.lightBlueAccent,
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 30),
-                            ),
-                            child: const Text(
-                              'Search Flights',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: Image.asset(
+                      'assets/images/airplane.jpg',
+                      width: screenWidth,
+                      height: screenHeight * 0.35,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
-              ),
+                Positioned(
+                  top: screenHeight * 0.20,
+                  left: screenWidth * 0.05,
+                  right: screenWidth * 0.05,
+                  child: SingleChildScrollView(
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: EdgeInsets.all(screenWidth * 0.05),
+                        width: screenWidth * 0.9,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Butoanele pentru tipul de zbor (One-way sau Return)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        isReturnFlight = false;
+                                        _returnDateController.clear();
+                                      });
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: !isReturnFlight
+                                          ? Colors.lightBlueAccent
+                                          : Colors.grey,
+                                    ),
+                                    child: const Text('One-way'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        isReturnFlight = true;
+                                      });
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isReturnFlight
+                                          ? Colors.lightBlueAccent
+                                          : Colors.grey,
+                                    ),
+                                    child: const Text('Return'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // Câmpuri autocomplete pentru 'From' și 'To'
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Column(
+                                  children: [
+                                    _buildAutocompleteField(
+                                      _fromController,
+                                      'From',
+                                      Icons.flight_takeoff,
+                                      _fromFocusNode,
+                                      _selectedFromAirports,
+                                    ),
+
+                                    const SizedBox(height: 8),
+
+                                    if (showSwitchButton)
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.1),
+                                                blurRadius: 4,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: RotationTransition(
+                                            turns: _rotationController != null
+                                                ? Tween(begin: 0.0, end: 1.0).animate(
+                                              CurvedAnimation(
+                                                parent: _rotationController!,
+                                                curve: Curves.easeInOut,
+                                              ),
+                                            )
+                                                : const AlwaysStoppedAnimation(0.0),
+                                            child: IconButton(
+                                              icon: const Icon(Icons.swap_horiz),
+                                              color: Colors.blueAccent,
+                                              iconSize: 28,
+                                              onPressed: _rotationController != null ? _swapFromTo : null,
+                                              padding: EdgeInsets.zero,
+                                              constraints: BoxConstraints(),
+                                              splashRadius: 24,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+
+                                    const SizedBox(height: 8),
+
+                                    _buildAutocompleteField(
+                                      _toController,
+                                      'To',
+                                      Icons.flight_land,
+                                      _toFocusNode,
+                                      _selectedToAirports,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            // Câmpul pentru date
+                            _buildDateField(),
+
+                            const SizedBox(height: 20),
+                            // Butonul de căutare
+                            Center(
+                              child: isLoading
+                                  ? const CircularProgressIndicator()
+                                  : ElevatedButton(
+                                onPressed: searchFlights,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.lightBlueAccent,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10, horizontal: 30),
+                                ),
+                                child: const Text(
+                                  'Search Flights',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
         ),
       ),
-    ),
     );
   }
+
 
   Widget _buildAutocompleteField(
       TextEditingController controller,

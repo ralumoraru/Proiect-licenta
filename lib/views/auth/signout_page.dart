@@ -176,7 +176,7 @@ class _SignOutPageState extends State<SignOutPage> {
                   Provider.of<CurrencyProvider>(context, listen: false).setCurrency(newValue);
                 }
               },
-              icon: const Icon(Icons.currency_exchange, color: Colors.white),
+              icon: const Icon(Icons.currency_exchange, color: Colors.black),
               dropdownColor: Colors.white,
               items: currencies.map((String currency) {
                 return DropdownMenuItem<String>(
@@ -234,18 +234,18 @@ class _SignOutPageState extends State<SignOutPage> {
                 ),
                 elevation: 5,
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(8.0), // <-- redus de la 16.0 la 8.0
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Name: ${_userData?['name'] ?? "No name available"}',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500), // <-- fontSize redus
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4), // <-- redus de la 8 la 4
                       Text(
                         'Email: ${_userData?['email'] ?? "No email available"}',
-                        style: const TextStyle(fontSize: 16),
+                        style: const TextStyle(fontSize: 14), // <-- fontSize redus
                       ),
                     ],
                   ),

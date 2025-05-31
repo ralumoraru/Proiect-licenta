@@ -1,7 +1,9 @@
 import 'package:flight_ticket_checker/models/Layover.dart';
+import 'package:flight_ticket_checker/services/currency_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flight_ticket_checker/models/BestFlights.dart';
 import 'package:flight_ticket_checker/models/Flight.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:auto_size_text/auto_size_text.dart';
 
@@ -13,7 +15,7 @@ class FlightDetailsPage extends StatelessWidget {
   final List<Layover> outboundLayovers;
   final List<Layover> returnLayovers;
 
-  const FlightDetailsPage({
+   FlightDetailsPage({
     super.key,
     required this.itinerary,
     this.returnFlights,
@@ -22,6 +24,7 @@ class FlightDetailsPage extends StatelessWidget {
     required this.outboundLayovers,
     required this.returnLayovers,
   });
+
 
   String formatDuration(int minutes) {
     int hours = minutes ~/ 60;
@@ -46,8 +49,12 @@ class FlightDetailsPage extends StatelessWidget {
     return totalDuration;
   }
 
+  late String currency;
+
   @override
   Widget build(BuildContext context) {
+    currency = Provider.of<CurrencyProvider>(context, listen: false).currency;
+    print("Currency used for search: $currency");
     // Calculate total durations for outbound and return trips
     int outboundDuration = calculateTotalDuration(itinerary.flights, outboundLayovers);
     int returnDuration = 0;
@@ -358,7 +365,7 @@ class FlightDetailsPage extends StatelessWidget {
                           // Price (flexibil ca să nu rupă layoutul)
                           Flexible(
                             child: Text(
-                              "${bookingDetail['price'] ?? 'N/A'} RON",
+                              "${bookingDetail['price'] ?? 'N/A'} $currency",
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,

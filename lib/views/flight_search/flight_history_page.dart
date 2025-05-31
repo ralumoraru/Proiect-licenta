@@ -1,6 +1,8 @@
+import 'package:flight_ticket_checker/services/currency_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -21,15 +23,16 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> with AutomaticKee
   @override
   void initState() {
     super.initState();
+    _fetchHistory();
   }
 
   @override
-  bool get wantKeepAlive => true; // păstrăm starea dar reîncărcăm datele
+  bool get wantKeepAlive => true;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _fetchHistory(); // se apelează și când utilizatorul revine la tab
+    _fetchHistory();
   }
 
   Future<void> _fetchHistory() async {
@@ -62,7 +65,6 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> with AutomaticKee
     }
   }
 
-
   String formatDate(String date) {
     DateTime parsedDate = DateTime.parse(date);
     String dayName = _getDayName(parsedDate.weekday);
@@ -83,33 +85,33 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> with AutomaticKee
     return monthNames[month - 1];
   }
 
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final textScale = MediaQuery.of(context).textScaleFactor;
+    String currency = Provider.of<CurrencyProvider>(context, listen: false).currency;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Flight Search History'),
         backgroundColor: Colors.blueAccent,
       ),
-    body: RefreshIndicator(
-    onRefresh: _fetchHistory,
-    child: _isLoading
-          ? Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent),
-        ),
-      )
-          : _history.isEmpty
-          ? Center(
-        child: Text(
-          'No search history found.',
-          style: TextStyle(fontSize: 18 * textScale),
-        ),
-      )
-          : ListView.builder(
+      body: RefreshIndicator(
+        onRefresh: _fetchHistory,
+        child: _isLoading
+            ? Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent),
+          ),
+        )
+            : _history.isEmpty
+            ? Center(
+          child: Text(
+            'No search history found.',
+            style: TextStyle(fontSize: 18 * textScale),
+          ),
+        )
+            : ListView.builder(
           itemCount: _history.length,
           itemBuilder: (context, index) {
             final item = _history[index];
@@ -123,7 +125,7 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> with AutomaticKee
                 ),
                 elevation: 5,
                 child: Padding(
-                  padding: EdgeInsets.all(screenWidth * 0.04),
+                  padding: EdgeInsets.all(screenWidth * 0.03),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -134,30 +136,57 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> with AutomaticKee
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         'Departure: ${formatDate(item['departure_date'])}'
                             '${item['return_date'] != null ? '\nReturn: ${formatDate(item['return_date'])}' : ''}',
                         style: TextStyle(
-                          fontSize: screenWidth * 0.04,
+                          fontSize: screenWidth * 0.035,
                           color: Colors.black54,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       if (prices.isNotEmpty) ...[
-                        const Text("Price Table:", style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text(
+                          "Price Table:",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        const SizedBox(height: 4),
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: DataTable(
+                            columnSpacing: 12,
+                            dataRowMinHeight: 24,
+                            dataRowMaxHeight: 28,
+                            headingRowHeight: 30,
                             columns: const [
-                              DataColumn(label: Text('Price')),
-                              DataColumn(label: Text('Day & Time'))
+                              DataColumn(
+                                label: Text(
+                                  'Price',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              DataColumn(
+                                label: Text(
+                                  'Day & Time',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
                             ],
                             rows: prices.map<DataRow>((priceItem) {
                               return DataRow(
                                 cells: [
-                                  DataCell(Text('${priceItem['price']} RON')),
-                                  DataCell(Text(formatDate(priceItem['created_at'])),
+                                  DataCell(
+                                    Text(
+                                      '${priceItem['price']} $currency',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      formatDate(priceItem['created_at']),
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
                                   ),
                                 ],
                               );
@@ -178,9 +207,9 @@ class _FlightHistoryPageState extends State<FlightHistoryPage> with AutomaticKee
                 ),
               ),
             );
-          }
+          },
+        ),
       ),
-    ),
     );
   }
 }

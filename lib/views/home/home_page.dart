@@ -158,7 +158,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final double screenWidth = MediaQuery.of(context).size.width;
 
 
-    return Scaffold(
+    return GestureDetector(
+        onTap: () {
+      // Ascunde tastatura și autocomplete-ul
+      FocusScopeNode currentFocus = FocusScope.of(context);
+      if (!currentFocus.hasPrimaryFocus && currentFocus.focusedChild != null) {
+        currentFocus.unfocus();
+      }
+    },
+    child: Scaffold(
       backgroundColor: Colors.white,
         body: SingleChildScrollView(  // Împachetăm tot conținutul într-un SingleChildScrollView
         child: Container(
@@ -306,6 +314,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         ),
         ),
       ),
+    ),
     );
   }
 

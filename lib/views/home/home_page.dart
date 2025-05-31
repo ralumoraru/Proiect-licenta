@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flight_ticket_checker/models/BestFlights.dart';
 import 'package:flight_ticket_checker/services/currency_provider.dart';
@@ -52,6 +53,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   bool isLoading = false;
+  final StreamController<List<String>> _airportSuggestionsController = StreamController.broadcast();
+  Timer? _debounceTimer;
+
 
   @override
   void initState() {
@@ -111,6 +115,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   @override
   void dispose() {
     _rotationController?.dispose();
+    _airportSuggestionsController.close();
+    _debounceTimer?.cancel();
     super.dispose();
   }
   void _swapFromTo() {
@@ -341,9 +347,20 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ),
           Autocomplete<String>(
             optionsBuilder: (TextEditingValue textEditingValue) async {
-              if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
-              return await apiService.getAirportsForCity(textEditingValue.text);
+              // Debounce: așteaptă ca utilizatorul să termine de tastat
+              if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+
+              _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
+                if (textEditingValue.text.isNotEmpty) {
+                  final results = await apiService.getAirportsForCity(textEditingValue.text);
+                  _airportSuggestionsController.add(results);
+                }
+              });
+
+              return _airportSuggestionsController.stream.first;
             },
+
+
             onSelected: (String selection) {
               setState(() {
                 final match = RegExp(r'\((.*?)\)').firstMatch(selection);

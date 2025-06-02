@@ -259,7 +259,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                       _selectedFromAirports,
                                     ),
 
-                                    const SizedBox(height: 8),
+
 
                                     if (showSwitchButton)
                                       Align(
@@ -276,6 +276,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                               ),
                                             ],
                                           ),
+
                                           child: RotationTransition(
                                             turns: _rotationController != null
                                                 ? Tween(begin: 0.0, end: 1.0).animate(
@@ -298,7 +299,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                         ),
                                       ),
 
-                                    const SizedBox(height: 8),
 
                                     _buildAutocompleteField(
                                       _toController,

@@ -52,7 +52,6 @@ Future<void> checkAndSendMatchingPrice({
     returnDate: formattedReturnDate,
     type: isReturnFlight ? 1 : 0,
     currency: currency,
-
   );
 
   FlightPairBuilder pairBuilder = FlightPairBuilder(itineraries);
@@ -91,31 +90,46 @@ Future<void> checkAndSendMatchingPrice({
       // obține ultimul preț cunoscut
       final lastKnownPrice = await fetchLastKnownPriceFromBackend(searchHistoryId.toString());
 
-      if (lastKnownPrice != null && price < lastKnownPrice) {
-        // notificare doar dacă prețul a scăzut
-        await flutterLocalNotificationsPlugin.show(
-          0,
-          'Preț redus!',
-          'Zborul tău urmărit costă acum $price€ (a scăzut de la $lastKnownPrice€)',
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'flight_channel',
-              'Flight Alerts',
-              channelDescription: 'Notificări când scade prețul la zboruri',
-              importance: Importance.max,
-              priority: Priority.high,
+      if (lastKnownPrice != null) {
+        if (price < lastKnownPrice) {
+          await flutterLocalNotificationsPlugin.show(
+            0,
+            'Preț redus!',
+            'Zborul tău urmărit costă acum $price€ (a scăzut de la $lastKnownPrice€)',
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'flight_channel',
+                'Flight Alerts',
+                channelDescription: 'Notificări când se schimbă prețul la zboruri',
+                importance: Importance.max,
+                priority: Priority.high,
+              ),
             ),
-          ),
-        );
+          );
+        } else if (price > lastKnownPrice) {
+          await flutterLocalNotificationsPlugin.show(
+            0,
+            'Preț crescut',
+            'Zborul tău urmărit costă acum $price€ (a crescut de la $lastKnownPrice€)',
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'flight_channel',
+                'Flight Alerts',
+                channelDescription: 'Notificări când se schimbă prețul la zboruri',
+                importance: Importance.max,
+                priority: Priority.high,
+              ),
+            ),
+          );
+        }
       }
-
 
       // Salvează oricum noul preț
       await sendPricesToBackend(
         searchHistoryId: searchHistoryId,
         price: price,
-
       );
+      break; // ieși din buclă după ce ai găsit un preț potrivit
     }
   }
 }

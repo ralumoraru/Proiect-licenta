@@ -37,6 +37,7 @@ class _FlightResultsPageState extends State<FlightResultsPage> {
   late final List<Map<String, dynamic>> flightPairs;
   final Set<String> favoriteKeys = {};
   final Map<String, bool> favoriteStates = {};
+  late String currency;
 
 
 
@@ -70,8 +71,6 @@ class _FlightResultsPageState extends State<FlightResultsPage> {
     }
   }
 
-
-
   String generateFlightKey({
     required String departure,
     required String destination,
@@ -88,13 +87,13 @@ class _FlightResultsPageState extends State<FlightResultsPage> {
         '${arrivalReturnDate != null ? format.format(DateTime.parse(arrivalReturnDate)) : ''}';
   }
 
-
   @override
   Widget build(BuildContext context) {
     print("Saved flights on results page: ${widget.savedFlights}");
     if (widget.itineraries.isEmpty) {
       return const Scaffold(body: Center(child: Text('No flights found.')));
     }
+    currency = Provider.of<CurrencyProvider>(context, listen: false).currency;
 
     return Scaffold(
       appBar: AppBar(
@@ -148,6 +147,7 @@ class _FlightResultsPageState extends State<FlightResultsPage> {
                 outboundFlight.returnFlights.isNotEmpty
                     ? outboundFlight.returnFlights.first.first.departureAirport.time
                     : null,
+                currency,
               );
 
               Navigator.push(
@@ -620,10 +620,11 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
     required List<Flight> outboundFlights,
     List<Flight>? returnFlights,
     required String currency,
-  }) async
-  {
+  }) async {
     final url = Uri.parse(
-        'https://viable-flamingo-advanced.ngrok-free.app/api/search-history/store');
+      'https://viable-flamingo-advanced.ngrok-free.app/api/search-history/store',
+    );
+
     final response = await http.post(
       url,
       headers: {
@@ -644,105 +645,32 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseData = jsonDecode(response.body);
       final int searchHistoryId = responseData['search_history_id'];
-      FlightSearchService flightSearchService = FlightSearchService();
-      List<Future<List<BestFlight>>> searchFutures = [];
-      searchFutures.add(
-        flightSearchService.searchFlights(
-          from: departureId,
-          to: destinationId,
-          departureDate: formattedDepartureDate,
-          isReturnFlight: returnDate != null,
-          returnDate: formattedReturnDate,
-          type: returnDate != null ? 1 : 0,
-          currency: currency,
-        ),
-      );
-      if (returnDate != null) {
-        searchFutures.add(
-          flightSearchService.searchFlights(
-            from: departureId,
-            to: destinationId,
-            departureDate: formattedDepartureDate!,
-            isReturnFlight: true,
-            returnDate: formattedReturnDate,
-            type: 1,
-            currency: currency,
-          ),
-        );
-      }
-
-      List<List<BestFlight>> results = await Future.wait(searchFutures);
-      List<BestFlight> allItineraries = results
-          .expand((element) => element)
-          .toList();
-
-      FlightPairBuilder pairBuilder = FlightPairBuilder(allItineraries);
-      List<Map<String, dynamic>> flightPairs = pairBuilder.buildFlightPairs();
 
       final expectedDepTime = DateTime.parse(departureDate);
       final expectedArrDepTime = DateTime.parse(arrivalDepartureDate);
-      final expectedRetTime = returnDate != null
-          ? DateTime.parse(returnDate)
-          : null;
-      final expectedArrRetTime = arrivalReturnDate != null ? DateTime.parse(
-          arrivalReturnDate) : null;
+      final expectedRetTime = returnDate != null ? DateTime.parse(returnDate) : null;
+      final expectedArrRetTime = arrivalReturnDate != null ? DateTime.parse(arrivalReturnDate) : null;
 
-      for (var pair in flightPairs) {
-        final outbound = pair['outboundFlight'] as BestFlight;
-        final returnSet = pair['returnFlight'] as List<Flight>?;
+      // Programează verificarea automată în background
+      scheduleBackgroundTask(
+        searchHistoryId,
+        departureId,
+        destinationId,
+        formattedDepartureDate,
+        formattedReturnDate ?? "",
+        returnDate != null,
+        expectedDepTime.toString(),
+        expectedArrDepTime.toString(),
+        expectedRetTime?.toString(),
+        expectedArrRetTime?.toString(),
+      );
 
-        final depTime = DateTime.parse(
-            outbound.flights.first.departureAirport.time);
-        final arrDepTime = DateTime.parse(
-            outbound.flights.last.arrivalAirport.time);
-
-        final isDepartureMatch = depTime.isAtSameMomentAs(expectedDepTime);
-        final isArrivalDepMatch = arrDepTime.isAtSameMomentAs(
-            expectedArrDepTime);
-
-        bool isReturnMatch = true;
-
-        if (expectedRetTime != null && expectedArrRetTime != null &&
-            returnSet != null && returnSet.isNotEmpty) {
-          final retDepTime = DateTime.parse(
-              returnSet.first.departureAirport.time);
-          final arrRetTime = DateTime.parse(returnSet.last.arrivalAirport.time);
-
-          isReturnMatch = retDepTime.isAtSameMomentAs(expectedRetTime) &&
-              arrRetTime.isAtSameMomentAs(expectedArrRetTime);
-        }
-
-        if (isDepartureMatch && isArrivalDepMatch && isReturnMatch) {
-          final price = returnSet != null && returnSet.isNotEmpty
-              ? returnSet.first.price
-              : outbound.flights.first.price;
-
-          await sendPricesToBackend(
-            searchHistoryId: searchHistoryId,
-            price: price,
-          );
-
-          scheduleBackgroundTask(
-            searchHistoryId,
-            departureId,
-            destinationId,
-            formattedDepartureDate,
-            formattedReturnDate ?? "",
-            isReturnMatch,
-            expectedDepTime.toString(),
-            expectedArrDepTime.toString(),
-            expectedRetTime?.toString(),
-            expectedArrRetTime?.toString(),
-          );
-
-          print('Matching flight found and price sent: $price');
-          break;
-        }
-      }
+      print('Search saved. Background task scheduled.');
     } else {
       print('Failed to save search: ${response.body}');
     }
   }
+
 
   Future<String> generateUniqueTaskName(int searchHistoryId) async {
     final prefs = await SharedPreferences.getInstance();

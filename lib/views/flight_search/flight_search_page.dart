@@ -133,7 +133,7 @@ class FlightSearchService {
             String departureToken = bestFlight.departureToken;
             String returnUrl = 'https://serpapi.com/search.json?'
                 '&arrival_id=$toCode'
-                '&currency=RON'
+                '&currency=$currency'
                 '&departure_id=$fromCode'
                 '&departure_token=$departureToken'
                 '&engine=google_flights'
@@ -226,7 +226,9 @@ class FlightSearchService {
       String fromCode,
       String toCode,
       String departureDate,
-      String? returnDate) async
+      String? returnDate,
+      String currency,
+      ) async
   {
 
     String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
@@ -256,7 +258,7 @@ class FlightSearchService {
     if (returnDateFormatted != null) {
       apiUrl = 'https://serpapi.com/search.json?'
           '&arrival_id=$toCode'
-          '&currency=RON'
+          '&currency=$currency'
           '&departure_id=$fromCode'
           '&booking_token=$bookingToken'
           '&engine=google_flights'

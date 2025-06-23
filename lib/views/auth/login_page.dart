@@ -21,18 +21,22 @@ class _LoginPageState extends State<LoginPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
 
+  void _showMessage(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in both email and password fields.')),
-      );
+      _showMessage('Please fill in both email and password fields.');
       return;
     }
 
-    setState(() => _isLoading = true);
+    if(mounted) setState(() => _isLoading = true);
 
     try {
       final response = await http.post(
@@ -48,21 +52,20 @@ class _LoginPageState extends State<LoginPage> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => AppNavigationBar()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => AppNavigationBar()),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sign in: ${response.body}')),
-        );
+        final errorData = jsonDecode(response.body);
+        _showMessage('${errorData['message'] ?? response.body}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      _showMessage('Error: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if(mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -103,16 +106,18 @@ class _LoginPageState extends State<LoginPage> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', backendToken);
 
-        Navigator.pushReplacementNamed(context, '/home');
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => AppNavigationBar()),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google Login Failed: ${response.body}')),
-        );
+        final errorData = jsonDecode(response.body);
+        _showMessage('Google Login Failed: ${errorData['message'] ?? response.body}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Google Sign-In Error: $e')),
-      );
+      _showMessage('Google Sign-In Error: $e');
     }
   }
 
@@ -121,26 +126,26 @@ class _LoginPageState extends State<LoginPage> {
     required IconData icon,
     required TextEditingController controller,
     bool obscure = false,
-    double iconSize = 24,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFE3F2FD), // Light blue background
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFFE3F2FD),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: const [
-          BoxShadow(color: Colors.white, offset: Offset(-5, -5), blurRadius: 10),
-          BoxShadow(color: Color(0xFF90CAF9), offset: Offset(5, 5), blurRadius: 10),
+          BoxShadow(color: Colors.white, offset: Offset(-3, -3), blurRadius: 6),
+          BoxShadow(color: Color(0xFF90CAF9), offset: Offset(3, 3), blurRadius: 6),
         ],
       ),
       child: TextField(
         controller: controller,
         obscureText: obscure,
+        style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
           hintText: hint,
-          prefixIcon: Icon(icon, size: iconSize, color: Colors.blueGrey),
+          prefixIcon: Icon(icon, color: Colors.blueGrey, size: 18),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
     );
@@ -148,140 +153,138 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final double scale = MediaQuery.textScaleFactorOf(context);
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final bool isTablet = screenWidth > 600;
+    final size = MediaQuery.of(context).size;
+    final textScale = MediaQuery.of(context).textScaleFactor;
+    final isTablet = size.shortestSide >= 600;
 
-    final double fontLarge = (isTablet ? 22 : 18) * scale;
-    final double fontMedium = (isTablet ? 14 : 12) * scale;
-    final double fontSmall = (isTablet ? 12 : 10) * scale;
-    final double buttonFont = (isTablet ? 14 : 12) * scale;
+    double getFontSize(double base) => base * (isTablet ? 1.2 : 1.0) * textScale;
+    double getButtonHeight() => isTablet ? 50 : 40;
 
     return Scaffold(
       backgroundColor: const Color(0xFFE3F2FD),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: isTablet ? 100 : 24, vertical: 24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 40),
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE3F2FD),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.white, offset: Offset(-4, -4), blurRadius: 12),
-                        BoxShadow(color: Color(0xFF90CAF9), offset: Offset(4, 4), blurRadius: 12),
-                      ],
-                    ),
-                    child: Icon(Icons.flight, size: isTablet ? 60 : 36, color: Colors.blue[700]),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Welcome',
-                    style: TextStyle(
-                      fontSize: fontLarge * 0.7,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue[900],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Log in to explore cheap flights and enjoy faster booking.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: fontMedium * 0.6,
-                      color: Colors.blueGrey,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  neumorphicTextField(
-                    hint: 'Email',
-                    icon: Icons.email_outlined,
-                    controller: _emailController,
-                    iconSize: isTablet ? 26 : 22,
-                  ),
-                  neumorphicTextField(
-                    hint: 'Password',
-                    icon: Icons.lock_outline,
-                    controller: _passwordController,
-                    obscure: true,
-                    iconSize: isTablet ? 26 : 22,
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: isTablet ? 60 : 54,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _login,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1565C0), // Deep blue
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 4,
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                          : Text(
-                        'Sign In',
-                        style: TextStyle(fontSize: buttonFont * 0.9, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE3F2FD),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: const [
-                        BoxShadow(color: Colors.white, offset: Offset(-4, -4), blurRadius: 10),
-                        BoxShadow(color: Color(0xFF90CAF9), offset: Offset(4, 4), blurRadius: 10),
-                      ],
-                    ),
-                    child: OutlinedButton.icon(
-                      onPressed: _signInWithGoogle,
-                      icon: Image.asset('assets/images/google_icon.png', height: isTablet ? 24 : 20),
-                      label: Text(
-                        'Or sign in with Google',
-                        style: TextStyle(fontSize: buttonFont * 0.75, color: Colors.blueGrey[800]),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                        side: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: () => Navigator.pushReplacementNamed(context, '/sign-up'),
-                    child: Text.rich(
-                      TextSpan(
-                        text: "Don’t have an account? ",
-                        style: TextStyle(fontSize: fontSmall, color: Colors.blueGrey),
-                        children: [
-                          TextSpan(
-                            text: "Sign up",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: fontSmall,
-                              color: Colors.blue[800],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+      body: Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(horizontal: size.width * 0.08),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(height: 40),
+              Container(
+                padding: EdgeInsets.all(isTablet ? 16 : 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE3F2FD),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.white, offset: Offset(-4, -4), blurRadius: 8),
+                    BoxShadow(color: Color(0xFF90CAF9), offset: Offset(4, 4), blurRadius: 8),
+                  ],
+                ),
+                child: Icon(Icons.flight, size: isTablet ? 45 : 28, color: Colors.blue[700]),
               ),
-            ),
-          );
-        },
+              const SizedBox(height: 15),
+              Text(
+                'Welcome',
+                style: TextStyle(
+                  fontSize: getFontSize(13),
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue[900],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Log in to explore cheap flights and enjoy faster booking.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: getFontSize(8),
+                  color: Colors.blueGrey,
+                ),
+              ),
+              const SizedBox(height: 20),
+              neumorphicTextField(
+                hint: 'Email',
+                icon: Icons.email_outlined,
+                controller: _emailController,
+              ),
+              neumorphicTextField(
+                hint: 'Password',
+                icon: Icons.lock_outline,
+                controller: _passwordController,
+                obscure: true,
+              ),
+              const SizedBox(height: 15),
+              SizedBox(
+                width: double.infinity,
+                height: getButtonHeight(),
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1565C0), // Deep blue
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 3,
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                      : Text(
+                    'Sign In',
+                    style: TextStyle(
+                        fontSize: getFontSize(11),
+                        color: Colors.white,
+                        height: 1.1),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              SizedBox(
+                height: getButtonHeight(),
+                child: OutlinedButton.icon(
+                  onPressed: _signInWithGoogle,
+                  icon: Image.asset('assets/images/google_icon.png', height: 18),
+                  label: Text(
+                    'Sign in with Google',
+                    style: TextStyle(
+                        fontSize: getFontSize(10),
+                        color: Colors.blueGrey[800],
+                        height: 1.1),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    backgroundColor: const Color(0xFFE3F2FD),
+                    side: BorderSide(color: Colors.blue.shade100, width: 0.5),
+                    elevation: 1,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () => Navigator.pushReplacementNamed(context, '/sign-up'),
+                child: Text.rich(
+                  TextSpan(
+                    text: "Don’t have an account? ",
+                    style: TextStyle(fontSize: getFontSize(9), color: Colors.blueGrey),
+                    children: [
+                      TextSpan(
+                        text: "Sign up",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: getFontSize(9),
+                          color: Colors.blue[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

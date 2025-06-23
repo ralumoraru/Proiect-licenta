@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flight_ticket_checker/services/background_task.dart';
 import 'package:flight_ticket_checker/services/currency_provider.dart';
+import 'package:flight_ticket_checker/services/flight_type_provider.dart';
 import 'package:flight_ticket_checker/views/flight_search/flight_details_page.dart';
 import 'package:flight_ticket_checker/views/flight_search/flight_pair_builder.dart';
 import 'package:http/http.dart' as http;
@@ -94,6 +95,7 @@ class _FlightResultsPageState extends State<FlightResultsPage> {
       return const Scaffold(body: Center(child: Text('No flights found.')));
     }
     currency = Provider.of<CurrencyProvider>(context, listen: false).currency;
+    print("Currency on results page: $currency");
 
     return Scaffold(
       appBar: AppBar(
@@ -125,7 +127,6 @@ class _FlightResultsPageState extends State<FlightResultsPage> {
               : <Layover>[];
 
           String flightKey = _generateFlightKeyForPair(outboundFlight, returnFlightSet);
-
 
           return GestureDetector(
             onTap: () async {
@@ -223,11 +224,13 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
   late SharedPreferences prefs;
   String flightKey = "";
   late String currency;
+  late int flightType;
 
   @override
   void initState() {
     super.initState();
     currency = Provider.of<CurrencyProvider>(context, listen: false).currency;
+    flightType = Provider.of<FlightTypeProvider>(context, listen: false).flightType;
 
 
     String dep = widget.outboundFlight.flights.first.departureAirport.name;
@@ -317,7 +320,6 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Am adăugat un Row pentru a plasa "Outbound" și inima pe aceeași linie
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -332,10 +334,9 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
                     _isFavorite || isFavorite(flightKey)
                         ? Icons.favorite
                         : Icons.favorite_border,
-                    // Change icon based on _isFavorite
                     color: _isFavorite || isFavorite(flightKey)
                         ? Colors.red
-                        : null, // Red color if it's a favorite
+                        : null,
                   ),
                   onPressed: () async {
                     final outbound = widget.outboundFlight.flights;
@@ -360,7 +361,6 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
                     final arrivalReturnDate = returnFlights?.last.arrivalAirport
                         .time;
 
-                    // Trunchiază datele la doar data (fără ora)
                     String formattedDepartureDate = departureDate
                         .split(' ')
                         .first;
@@ -368,11 +368,9 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
                         ?.split(' ')
                         .first;
 
-
                     print("User Id: ${widget.userId}");
 
                     if (_isFavorite) {
-                      // If already marked as favorite, remove it
                       await deleteSavedFlight(
                         userId: widget.userId,
                         departure: departureAirportName,
@@ -387,10 +385,8 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
                       setState(() {
                         _isFavorite = false;
                       });
-                      print(
-                          "Deleted flight: $departureAirportName to $destinationAirportName");
+                      print("Deleted flight: $departureAirportName to $destinationAirportName");
                     } else {
-                      // Otherwise, save it again
                       await saveFlightSearch(
                         userId: widget.userId,
                         departure: departureAirportName,
@@ -406,6 +402,7 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
                         outboundFlights: widget.outboundFlight.flights,
                         returnFlights: widget.returnFlightSet,
                         currency: currency,
+                        fligthtype: flightType,
                       );
                       favoriteFlightKeys.add(flightKey);
                       setState(() {
@@ -414,7 +411,6 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
                       print(
                           "Saved flight: $departureAirportName to $destinationAirportName");
                     }
-                    // Salvează starea favoritelor în SharedPreferences
                     await _saveFavoriteFlights();
                   },
                 )
@@ -448,7 +444,8 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
   }
 
   Widget buildFlightDetails(String title, List<Flight> flights,
-      List<Layover> layovers, double fontSize) {
+      List<Layover> layovers, double fontSize)
+  {
     Flight firstFlight = flights.first;
     Flight lastFlight = flights.last;
     bool hasLayovers = layovers.isNotEmpty;
@@ -519,7 +516,8 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
   }
 
   Widget _buildFlightInfoColumn(String? time, String? airportId,
-      String imageUrl, double fontSize) {
+      String imageUrl, double fontSize)
+  {
     return Flexible(
       child: Row(
         children: [
@@ -540,7 +538,8 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
   }
 
   Widget _buildFlightInfoColumnWithNextDayIndicator(String? time,
-      String? airportId, String imageUrl, bool isNextDay, double fontSize) {
+      String? airportId, String imageUrl, bool isNextDay, double fontSize)
+  {
     return Flexible(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -620,6 +619,7 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
     required List<Flight> outboundFlights,
     List<Flight>? returnFlights,
     required String currency,
+    required int fligthtype,
   }) async {
     final url = Uri.parse(
       'https://viable-flamingo-advanced.ngrok-free.app/api/search-history/store',
@@ -651,14 +651,15 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
       final expectedRetTime = returnDate != null ? DateTime.parse(returnDate) : null;
       final expectedArrRetTime = arrivalReturnDate != null ? DateTime.parse(arrivalReturnDate) : null;
 
-      // Programează verificarea automată în background
+      print("Return type: $fligthtype");
+
       scheduleBackgroundTask(
         searchHistoryId,
         departureId,
         destinationId,
         formattedDepartureDate,
         formattedReturnDate ?? "",
-        returnDate != null,
+        fligthtype,
         expectedDepTime.toString(),
         expectedArrDepTime.toString(),
         expectedRetTime?.toString(),
@@ -691,7 +692,7 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
       String destinationId,
       String formattedDepartureDate,
       String? formattedReturnDate,
-      bool isReturnFlight,
+      int isReturnFlight,
       String expectedDepartureDate,
       String expectedArrivalDepartureDate,
       String? expectedReturnDate,
@@ -708,14 +709,14 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
     Workmanager().registerPeriodicTask(
       taskName,
       'checkAndSendMatchingPeriodicTask',
-      frequency: const Duration(hours: 2),
+      frequency: const Duration(minutes: 2),
       inputData: <String, dynamic>{
         'searchHistoryId': searchHistoryId,
         'departureId': departureId,
         'destinationId': destinationId,
         'formattedDepartureDate': formattedDepartureDate,
         'formattedReturnDate': formattedReturnDate ?? "",
-        'isReturnFlight': isReturnFlight,
+        'isReturnFlight': flightType,
         'expectedDepartureDate': expectedDepartureDate,
         'expectedArrivalDepartureDate': expectedArrivalDepartureDate,
         'expectedReturnDate': expectedReturnDate ?? "",
@@ -737,7 +738,8 @@ class _FlightItineraryCardState extends State<FlightItineraryCard> {
     String? returnDate,
     String? arrivalReturnDate,
     required int searchHistoryId,
-  }) async {
+  }) async
+  {
     final url = Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/search-history/delete');
 
     final response = await http.delete(

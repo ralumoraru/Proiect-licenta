@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flight_ticket_checker/models/Layover.dart';
 import 'package:flight_ticket_checker/services/currency_provider.dart';
 import 'package:flutter/material.dart';
@@ -32,16 +34,13 @@ class FlightDetailsPage extends StatelessWidget {
     return '$hours h ${remainingMinutes}m';
   }
 
-  // Function to calculate the total duration for a list of flights and layovers
   int calculateTotalDuration(List<Flight> flights, List<Layover> layovers) {
     int totalDuration = 0;
 
-    // Sum up the duration of all flights
     for (var flight in flights) {
       totalDuration += flight.duration;
     }
 
-    // Sum up the duration of all layovers
     for (var layover in layovers) {
       totalDuration += layover.duration;
     }
@@ -55,7 +54,6 @@ class FlightDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     currency = Provider.of<CurrencyProvider>(context, listen: false).currency;
     print("Currency used for search: $currency");
-    // Calculate total durations for outbound and return trips
     int outboundDuration = calculateTotalDuration(itinerary.flights, outboundLayovers);
     int returnDuration = 0;
     if (returnFlights != null && returnFlights!.isNotEmpty) {
@@ -87,7 +85,6 @@ class FlightDetailsPage extends StatelessWidget {
     );
   }
 
-  // Modify the _buildFlightSection method to display total duration next to the title
   Widget _buildFlightSection(String title, List<Flight> flights, List<Layover> layovers, int totalDuration) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,7 +111,6 @@ class FlightDetailsPage extends StatelessWidget {
             final flight = flights[index];
             return Column(
               children: [
-                // Flight Card
                 Card(
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -148,7 +144,6 @@ class FlightDetailsPage extends StatelessWidget {
                   ),
                 ),
 
-                // Layover Between Flights
                 if (index < layovers.length) ...[
                   const SizedBox(height: 5),
                   Row(
@@ -234,7 +229,6 @@ class FlightDetailsPage extends StatelessWidget {
       name = name.replaceAll("International", "Intl").trim();
     }
 
-    // Dacă numele este mai lung de 10 caractere, îl trunchiem și adăugăm '...'
     if (name.length > 10) {
       name = name.substring(0, 10) + '...';
     }
@@ -280,20 +274,18 @@ class FlightDetailsPage extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          // Check if there are airline logos
                           if (bookingDetail['airline_logos'] != null &&
                               bookingDetail['airline_logos'].isNotEmpty)
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Image.network(
-                                bookingDetail['airline_logos'][0], // Only show the first logo
+                                bookingDetail['airline_logos'][0],
                                 width: 30,
                                 height: 30,
                                 fit: BoxFit.cover,
                               ),
                             ),
-                          const SizedBox(width: 8), // Space between logo and text
-                          // Flexible widget to allow text to adjust
+                          const SizedBox(width: 8),
                           Flexible(
                             child: Text(
                               "${bookingDetail['book_with'] ?? 'N/A'}",
@@ -303,14 +295,13 @@ class FlightDetailsPage extends StatelessWidget {
                                 fontSize: 16,
                                 color: Colors.black87,
                               ),
-                              overflow: TextOverflow.ellipsis, // Truncate if the text is too long
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10), // Space after the Row
+                      const SizedBox(height: 10),
 
-                      // Option Title section
                       if (bookingDetail['option_title'] != null && bookingDetail['option_title'].isNotEmpty)
                         Text(
                           "${bookingDetail['option_title'] ?? 'N/A'}",
@@ -318,7 +309,6 @@ class FlightDetailsPage extends StatelessWidget {
                         ),
 
                       const SizedBox(height: 10),
-                      //extensions
                       if (bookingDetail['extensions'] != null &&
                           bookingDetail['extensions'].isNotEmpty)
                         Column(
@@ -339,7 +329,6 @@ class FlightDetailsPage extends StatelessWidget {
                       height: 2,
                       ),
 
-                      // Baggage prices section
                       if (bookingDetail['baggage_prices'] != null &&
                           bookingDetail['baggage_prices'].isNotEmpty)
                         Column(
@@ -357,12 +346,10 @@ class FlightDetailsPage extends StatelessWidget {
                         ),
                       const SizedBox(height: 10),
 
-                      // Price and Book Now button section
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Price (flexibil ca să nu rupă layoutul)
                           Flexible(
                             child: Text(
                               "${bookingDetail['price'] ?? 'N/A'} $currency",
@@ -376,15 +363,48 @@ class FlightDetailsPage extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
 
-                          // Book Now button styled with background
                           Flexible(
                             child: GestureDetector(
                               onTap: () async {
                                 final url = bookingDetail['booking_request']['url'] ?? '';
-                                if (url.isNotEmpty && await canLaunch(url)) {
-                                  await launchUrl(Uri.parse(url));
+                                final requestbody = bookingDetail['booking_request']['post_data'] ?? '';
+
+                                final response = await http.post(
+                                  Uri.parse(url),
+                                  headers: {
+                                    'Content-Type': 'text/plain;charset=UTF-8',
+                                    'Accept': '*/*',
+                                  },
+                                  body: requestbody,
+                                );
+
+                                if (response.statusCode == 200) {
+                                  final html = response.body;
+                                  print('POST successful, response HTML: $html');
+                                  final regex = RegExp(r"url='([^\']+)'");
+                                  final match = regex.firstMatch(response.body);
+                                  if (match != null) {
+                                    try {
+                                      final redirectUrl = match.group(1)!;
+                                      final cleanUrl = redirectUrl.replaceAll('&amp;', '&');
+                                      final encodedUrl = Uri.encodeFull(cleanUrl);
+                                      final uriToLaunch = Uri.parse(encodedUrl);
+
+                                      print('Encoded URL: $encodedUrl');
+
+                                      await launchUrl(
+                                        uriToLaunch,
+                                        mode: LaunchMode.externalApplication,
+                                      );
+                                    } catch (e) {
+                                      print('Error launching URL: $e');
+                                    }
+                                  } else {
+                                    print('No redirect URL found in response.');
+                                  }
                                 } else {
-                                  print('Could not launch URL');
+                                  print('POST failed: ${response.statusCode}');
+                                  print('Response Body: ${response.body}');
                                 }
                               },
                               child: Container(

@@ -4,18 +4,15 @@ import 'dart:convert';
 class ApiService {
   final String baseUrl = 'https://viable-flamingo-advanced.ngrok-free.app/api';
 
-  // Funcție pentru a obține numele aeroportului pe baza codului IATA
   Future<String?> getAirportNameByIataCode(String iataCode) async {
     try {
-      // Trimite cererea GET pentru a obține informațiile despre aeroport
       final response = await http.get(Uri.parse('$baseUrl/airport-by-iata-code?iata_code=$iataCode'));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
 
-        // Verifică dacă există răspuns valid și returnează numele aeroportului
         if (data['airport_name'] != null) {
-          return data['airport_name'];  // Returnează numele aeroportului
+          return data['airport_name'];
         }
       } else {
         print('Error: ${response.statusCode} - ${response.body}');
@@ -23,7 +20,7 @@ class ApiService {
     } catch (e) {
       print('Exception while fetching airport name by IATA code: $e');
     }
-    return null;  // În caz de eroare, returnează null
+    return null;
   }
 
   Future<String?> getAirportCodeByCity(String cityName) async {

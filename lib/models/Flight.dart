@@ -44,11 +44,14 @@ class Flight {
       travelClass: json['travel_class'] ?? '',
       flightNumber: json['flight_number'] ?? '',
       legroom: json['legroom'] ?? '',
-      extensions: List<String>.from(json['extensions']),
+      extensions: json['extensions'] != null
+          ? List<String>.from(json['extensions'])
+          : [],
       price: json['price'] ?? 0,
       layover: (json['layovers'] as List<dynamic>?)
           ?.map((layover) => Layover.fromJson(layover))
-          .toList() ?? [],
+          .toList() ??
+          [],
       bookingToken: json['booking_token'] ?? '',
     );
   }

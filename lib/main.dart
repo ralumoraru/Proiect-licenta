@@ -1,3 +1,4 @@
+import 'package:flight_ticket_checker/services/flight_type_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +10,7 @@ import 'views/auth/login_page.dart';
 import 'views/auth/signup_page.dart';
 import 'views/home/navigation_bar.dart';
 import 'services/background_task.dart';
-import 'package:flight_ticket_checker/services/currency_provider.dart'; // <-- Import nou
+import 'package:flight_ticket_checker/services/currency_provider.dart';
 import 'package:provider/provider.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
@@ -53,7 +54,7 @@ void callbackDispatcher() {
         destinationId: inputData['destinationId'],
         formattedDepartureDate: inputData['formattedDepartureDate'],
         formattedReturnDate: inputData['formattedReturnDate'] ?? "",
-        isReturnFlight: inputData['isReturnFlight'] ?? false,
+        isReturnFlight: inputData['isReturnFlight'],
         expectedDepartureDate: inputData['expectedDepartureDate'],
         expectedArrivalDepartureDate: inputData['expectedArrivalDepartureDate'],
         expectedReturnDate: inputData['expectedReturnDate'] ?? "",
@@ -107,6 +108,7 @@ class _MyAppWrapperState extends State<MyAppWrapper> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CurrencyProvider()),
+        ChangeNotifierProvider(create: (_) => FlightTypeProvider()),
       ],
       child: const MyApp(),
     );

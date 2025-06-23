@@ -24,7 +24,6 @@ class BestFlight {
         .map((flightJson) => Flight.fromJson(flightJson))
         .toList();
 
-    // ✅ Adăugăm layover-urile corect
     List<Layover> layovers = (json['layovers'] as List<dynamic>? ?? [])
         .map((l) => Layover.fromJson(l))
         .toList();
@@ -32,7 +31,7 @@ class BestFlight {
     if (flights.length > 1 && layovers.isNotEmpty) {
       for (int i = 0; i < layovers.length; i++) {
         if (i < flights.length - 1) {
-          flights[i].layover.add(layovers[i]); // ✅ Adăugăm layover-urile între zboruri
+          flights[i].layover.add(layovers[i]);
         }
       }
     }

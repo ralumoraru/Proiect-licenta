@@ -11,70 +11,52 @@ class FlightSearchService {
   final ApiService apiService = ApiService();
   late Future<List<BestFlight>> bestFlights;
 
+  final String backendBaseUrl = 'https://viable-flamingo-advanced.ngrok-free.app/api';
+
   Future<List<BestFlight>> searchFlights({
     required String from,
     required String to,
     required String departureDate,
-    required bool isReturnFlight,
     String? returnDate,
     required int type,
     required String currency,
   }) async
   {
-    String? fromCode = isIataCode(from) ? from : await apiService
-        .getAirportCodeByCity(from);
-    String? toCode = isIataCode(to) ? to : await apiService
-        .getAirportCodeByCity(to);
+    String? fromCode = isIataCode(from) ? from : await apiService.getAirportCodeByCity(from);
+    String? toCode = isIataCode(to) ? to : await apiService.getAirportCodeByCity(to);
 
     if (fromCode == null || toCode == null) {
-      throw Exception('Could not find airport codes for the cities entered.');
+      throw Exception('Invalid or missing IATA codes.');
     }
 
-    String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
-    String apiUrl;
+    final uri = Uri.parse('$backendBaseUrl/flights/search').replace(queryParameters: {
+      'from': from,
+      'to': to,
+      'departure_date': departureDate,
+      if (returnDate != null) 'return_date': returnDate,
+      'type': type.toString(),
+      'currency': currency,
+    });
 
-    if (type == 1 && returnDate != null) {
-      apiUrl = 'https://serpapi.com/search.json?'
-          '&arrival_id=$toCode'
-          '&currency=$currency'
-          '&departure_id=$fromCode'
-          '&engine=google_flights'
-          '&hl=en'
-          '&outbound_date=$departureDate'
-          '&return_date=$returnDate'
-          '&type=$type'
-          '&api_key=$apiKey';
-    } else {
-      apiUrl = 'https://serpapi.com/search.json?'
-          '&arrival_id=$toCode'
-          '&currency=$currency'
-          '&departure_id=$fromCode'
-          '&engine=google_flights'
-          '&hl=en'
-          '&outbound_date=$departureDate'
-          '&type=$type'
-          '&api_key=$apiKey';
-    }
-    print("Generated API URL: $apiUrl");
+    final response = await http.get(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+    );
 
-    try {
-      final response = await http.get(Uri.parse(apiUrl));
 
-      if (response.statusCode == 200) {
-        var decodedJson = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      var decodedJson = jsonDecode(response.body);
         print("Response JSON: $decodedJson");
-        var bestFlightsJson = decodedJson['best_flights']; // Get best flights first
-        var otherFlightsJson = decodedJson['other_flights']; // Get other flights if no best flights
-
-        List<BestFlight> bestFlights = [];
-        List<BestFlight> allFlights = [];
+        var bestFlightsJson = decodedJson['best_flights'];
         print("Best flights JSON: $bestFlightsJson");
+        var otherFlightsJson = decodedJson['other_flights'];
         print("Other flights JSON: $otherFlightsJson");
 
-        // Process best flights if available
+        List<BestFlight> bestFlights = [];
+        List<BestFlight> otherFlights = [];
+
         if (bestFlightsJson != null && bestFlightsJson is List) {
-          bestFlights = bestFlightsJson.map<BestFlight>((json) =>
-              BestFlight.fromJson(json)).toList();
+          bestFlights = bestFlightsJson.map<BestFlight>((json) => BestFlight.fromJson(json)).toList();
 
           for (var i = 0; i < bestFlights.length; i++) {
             var flightData = bestFlightsJson[i];
@@ -84,31 +66,60 @@ class FlightSearchService {
             for (var flight in bestFlights[i].flights) {
               flight.price = price;
               flight.bookingToken = bookingToken;
-
-              print("Booking token: $bookingToken");
             }
           }
         }
-         // Always add best flights to the final list
-      allFlights.addAll(bestFlights);
 
-      // Always process and add other flights, even if best flights are found
-      if (otherFlightsJson != null && otherFlightsJson is List) {
-        List<BestFlight> otherFlights = otherFlightsJson.map<BestFlight>((json) => BestFlight.fromJson(json)).toList();
-        allFlights.addAll(otherFlights); // Add all the other flights
+        if (otherFlightsJson != null && otherFlightsJson is List) {
+          otherFlights = otherFlightsJson.map<BestFlight>((json) => BestFlight.fromJson(json)).toList();
+
+          for (var i = 0; i < otherFlights.length; i++) {
+            var flightData = otherFlightsJson[i];
+            int price = flightData['price'] ?? 0;
+            String bookingToken = flightData['booking_token'] ?? '';
+
+            for (var flight in otherFlights[i].flights) {
+              flight.price = price;
+              flight.bookingToken = bookingToken;
+            }
+          }
+        }
+
+      final Map<String, BestFlight> uniqueFlights = {};
+
+      for (var flight in bestFlights) {
+        if (flight.departureToken.isNotEmpty) {
+          if (uniqueFlights.containsKey(flight.departureToken)) {
+            print('Duplicate token in bestFlights: ${flight.departureToken}');
+          } else {
+            uniqueFlights[flight.departureToken] = flight;
+          }
+        }
       }
 
-       if (bestFlights.isEmpty && otherFlightsJson != null && otherFlightsJson is List) {
+      for (var flight in otherFlights) {
+        if (flight.departureToken.isNotEmpty) {
+          if (uniqueFlights.containsKey(flight.departureToken)) {
+            print('Duplicate token in otherFlights: ${flight.departureToken}');
+
+          } else {
+            uniqueFlights[flight.departureToken] = flight;
+          }
+        }
+      }
+
+
+      List<BestFlight> allFlights = uniqueFlights.values.toList();
+        print('All flights tokens after merge: ${allFlights.map((f) => f.departureToken).toList()}');
+        print('Number of flights: ${allFlights.length}');
+
+        if (bestFlights.isEmpty && otherFlightsJson != null && otherFlightsJson is List) {
           try {
             allFlights = otherFlightsJson.map<BestFlight>((json) => BestFlight.fromJson(json)).toList();
           } catch (e) {
             print("Eroare în BestFlight.fromJson(): $e");
           }
 
-          print("All flights JSON: $allFlights");
-          print('Sunt aici 2');
-
-          // Get the price for each flight using flight models and the flight it's in flight in json response
           for (var i = 0; i < allFlights.length; i++) {
             var flightData = otherFlightsJson[i];
             int price = flightData['price'] ?? 0;
@@ -118,104 +129,81 @@ class FlightSearchService {
               flight.price = price;
               flight.bookingToken = bookingToken;
 
-              print("Booking token: $bookingToken");
             }
           }
 
-        } else {
-          allFlights.addAll(bestFlights);
         }
 
-
-        // ✅ Add return flights for each outbound flight
-        if (type == 1 && isReturnFlight && returnDate != null) {
+        if (type == 1 && returnDate != null) {
           await Future.wait(allFlights.map((bestFlight) async {
-            String departureToken = bestFlight.departureToken;
-            String returnUrl = 'https://serpapi.com/search.json?'
-                '&arrival_id=$toCode'
-                '&currency=$currency'
-                '&departure_id=$fromCode'
-                '&departure_token=$departureToken'
-                '&engine=google_flights'
-                '&hl=en'
-                '&outbound_date=$departureDate'
-                '&return_date=$returnDate'
-                '&type=1'
-                '&api_key=$apiKey';
+            try {
+              String departureToken = bestFlight.departureToken;
 
-            final returnResponse = await http.get(Uri.parse(returnUrl));
-            print("Return flight response: ${returnResponse.statusCode}");
+              final uri = Uri.parse('$backendBaseUrl/flights/return').replace(queryParameters: {
+                'from': from,
+                'to': to,
+                'departure_date': departureDate,
+                if (returnDate != null) 'return_date': returnDate,
+                'currency': currency,
+                'departure_token': departureToken,
+              });
 
-            if (returnResponse.statusCode == 200) {
-              var returnJson = jsonDecode(returnResponse.body);
-              print("Return flight response: $returnJson");
-              var returnFlightsJson = returnJson['other_flights'];
+              final returnResponse = await http.get(
+                uri,
+                headers: {'Content-Type': 'application/json'},
+              );
 
-              if (returnFlightsJson != null && returnFlightsJson is List) {
-                List<List<Flight>> allReturnFlights = returnFlightsJson.map<
-                    List<Flight>>((json) {
-                  // ✅ Eliminate duplicate layovers
-                  var layovers = <String, Layover>{};
-                  (json['layovers'] as List<dynamic>?)?.forEach((l) {
-                    Layover layover = Layover.fromJson(l);
-                    layovers[layover.id] = layover; // Save only unique layovers
-                  });
+              if (returnResponse.statusCode == 200) {
+                var returnJson = jsonDecode(returnResponse.body);
+                var returnFlightsJson = returnJson;
 
-                  List<Flight> flightsList = (json['flights'] as List).map((f) {
-                    Flight flight = Flight.fromJson(f);
+                if (returnFlightsJson != null && returnFlightsJson is List) {
+                  List<List<Flight>> allReturnFlights = returnFlightsJson.map<List<Flight>>((json) {
+                    var layovers = <String, Layover>{};
+                    (json['layovers'] as List<dynamic>?)?.forEach((l) {
+                      Layover layover = Layover.fromJson(l);
+                      layovers[layover.id] = layover;
+                    });
 
-                    // ✅ Add all unique layovers to each flight
-                    flight.layover.addAll(layovers.values);
+                    List<Flight> flightsList = (json['flights'] as List).map((f) {
+                      Flight flight = Flight.fromJson(f);
+                      flight.layover.addAll(layovers.values);
+                      return flight;
+                    }).toList();
 
-                    print("Layovers added to flight ${flight
-                        .flightNumber}: ${flight.layover.map((l) => l.id).join(
-                        ', ')}");
-
-                    return flight;
+                    return flightsList;
                   }).toList();
 
-                  return flightsList;
-                }).toList();
+                  for (var i = 0; i < allReturnFlights.length; i++) {
+                    var returnFlightData = returnFlightsJson[i];
+                    int returnPrice = returnFlightData['price'] ?? 0;
+                    String bookingToken = returnFlightData['booking_token'] ?? '';
 
-                for (var i = 0; i < allReturnFlights.length; i++) {
-                  var returnFlightData = returnFlightsJson[i];
-                  int returnPrice = returnFlightData['price'] ?? 0;
-                  String bookingToken = returnFlightData['booking_token'] ?? '';
-
-                  for (var flight in allReturnFlights[i]) {
-                    flight.price = returnPrice;
-                    flight.bookingToken = bookingToken;
-
-                    print("Booking token: $bookingToken");
+                    for (var flight in allReturnFlights[i]) {
+                      flight.price = returnPrice;
+                      flight.bookingToken = bookingToken;
+                    }
                   }
+
+                  bestFlight.returnFlights = allReturnFlights;
+                  print("Return flights loaded for token: $departureToken");
+                } else {
+                  print("No return flights found for token: $departureToken");
                 }
-
-                // ✅ Save return flights for the current BestFlight
-                bestFlight.returnFlights = allReturnFlights;
-
-                print("Return flights loaded for ${bestFlight.flights.first
-                    .departureAirport.name} - ${bestFlight.flights.last
-                    .arrivalAirport.name}");
               } else {
-                print("No return flights found for ${bestFlight.flights.first
-                    .departureAirport.name} - ${bestFlight.flights.last
-                    .arrivalAirport.name}");
+                print(" Failed to load return flights for token: $departureToken. Status code: ${returnResponse.statusCode}");
               }
-            } else {
-              print(
-                  "Failed to load return flights. Status code: ${returnResponse
-                      .statusCode}");
+            } catch (e) {
+              print("‼Error fetching return flights for flight with token ${bestFlight.departureToken}: $e");
             }
           }));
+
         }
 
         return allFlights;
       } else {
         print("Failed to load data. Status code: ${response.statusCode}");
       }
-    } catch (e) {
-      print("Error occurred: $e");
-    }
 
     return [];
   }
@@ -231,97 +219,69 @@ class FlightSearchService {
       ) async
   {
 
-    String apiKey = 'fc6a54d6be83e40644de9681a69ddaf5733b451efcd6d4051e833c6c7b1fb96b';
-
     String formatDate(String dateTimeString) {
       try {
         final DateTime parsedDate = DateTime.parse(dateTimeString);
-        return DateFormat('yyyy-MM-dd').format(parsedDate); // Format only the date
+        return DateFormat('yyyy-MM-dd').format(parsedDate);
       } catch (e) {
         print("Error formatting date: $e");
-        return '';  // Return empty string if parsing fails
+        return '';
       }
     }
 
     String outboundDateFormatted = formatDate(departureDate);
     String? returnDateFormatted = returnDate != null ? formatDate(returnDate) : null;
 
-    print("arrival_id: $toCode");
-    print("departure_id: $fromCode");
-    print("departure_date: $departureDate");
-    print("return_date: $returnDate");
+    final uri = Uri.parse('$backendBaseUrl/flights/booking').replace(queryParameters: {
+      'booking_token': bookingToken,
+      'from': fromCode,
+      'to': toCode,
+      'departure_date': outboundDateFormatted,
+      if (returnDateFormatted != null) 'return_date': returnDateFormatted,
+      'currency': currency,
+    });
 
-    print("Outbound date formatted: $outboundDateFormatted");
+    final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json'});
 
-    String apiUrl;
-
-    if (returnDateFormatted != null) {
-      apiUrl = 'https://serpapi.com/search.json?'
-          '&arrival_id=$toCode'
-          '&currency=$currency'
-          '&departure_id=$fromCode'
-          '&booking_token=$bookingToken'
-          '&engine=google_flights'
-          '&hl=en'
-          '&outbound_date=$outboundDateFormatted'
-          '&return_date=$returnDateFormatted'
-          '&type=1'
-          '&api_key=$apiKey';
-    } else {
-      apiUrl = 'https://serpapi.com/search.json?'
-          '&arrival_id=$toCode'
-          '&currency=RON'
-          '&departure_id=$fromCode'
-          '&booking_token=$bookingToken'
-          '&engine=google_flights'
-          '&hl=en'
-          '&outbound_date=$outboundDateFormatted'
-          '&type=2'
-          '&api_key=$apiKey';
-    }
-
-    print("Generated API URL: $apiUrl");
 
     try {
-      final response = await http.get(Uri.parse(apiUrl));
+
       if (response.statusCode == 200) {
-        Map<String, dynamic> data = json.decode(response.body);
+        List<dynamic> dataList = json.decode(response.body);
 
         List<Map<String, dynamic>> flightDetails = [];
 
-        if (data['booking_options'] != null) {
-          var bookingOptions = List<Map<String, dynamic>>.from(data['booking_options']);
-
-          for (var option in bookingOptions) {
-            var together = option['together'] as Map<String, dynamic>?;
-            if (together != null) {
-              if (together.containsKey('book_with') && together.containsKey('airline_logos')) {
-                var bookingOptionData = BookingOptions.fromJson(together);
-                flightDetails.add({
-                  'book_with': bookingOptionData.bookWith,
-                  'airline_logos': bookingOptionData.airlineLogos,
-                  'marketed_as': together['marketed_as'],
-                  'price': together['price'],
-                  'local_prices': together['local_prices'],
-                  'baggage_prices': together['baggage_prices'],
-                  'booking_request': together['booking_request'],
-                  'option_title': together['option_title'],
-                  'extensions': together['extensions'],
-                });
-                print("Booking option: ${together['book_with']}");
-              } else {
-                print("Error: Missing required fields in 'together'.");
-              }
+        for (var option in dataList) {
+          var together = option['together'] as Map<String, dynamic>?;
+          if (together != null) {
+            if (together.containsKey('book_with') && together.containsKey('airline_logos')) {
+              var bookingOptionData = BookingOptions.fromJson(together);
+              flightDetails.add({
+                'book_with': bookingOptionData.bookWith,
+                'airline_logos': bookingOptionData.airlineLogos,
+                'marketed_as': together['marketed_as'],
+                'price': together['price'],
+                'local_prices': together['local_prices'],
+                'baggage_prices': together['baggage_prices'],
+                'booking_request': together['booking_request'],
+                'option_title': together['option_title'],
+                'extensions': together['extensions'],
+              });
+              print("Booking option: ${together['book_with']}");
             } else {
-              print("Error: 'together' is null.");
+              print("Error: Missing required fields in 'together'.");
             }
+          } else {
+            print("Error: 'together' is null.");
           }
-                } else {
-          print("Error: 'booking_options' not found in the response.");
         }
 
         print("Booking options: $flightDetails");
         return flightDetails;
+
       } else {
         print("Failed to load booking details. Status code: ${response.statusCode}");
         print("Response body: ${response.body}");

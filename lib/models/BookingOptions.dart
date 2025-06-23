@@ -1,11 +1,11 @@
 class BookingOptions {
-  final String bookWith; // Compania aeriană cu care se face rezervarea
-  final List<String> airlineLogos; // Logouri ale companiilor aeriene
-  final List<String> marketedAs; // Codurile zborurilor
-  final int price; // Prețul rezervării
-  final List<Map<String, dynamic>> localPrices; // Prețuri locale în diferite valute
-  final List<String> baggagePrices; // Prețuri pentru bagaje
-  final Map<String, dynamic> bookingRequest; // Detalii pentru a finaliza rezervarea
+  final String bookWith;
+  final List<String> airlineLogos;
+  final List<String> marketedAs;
+  final int price;
+  final List<Map<String, dynamic>> localPrices;
+  final List<String> baggagePrices;
+  final Map<String, dynamic> bookingRequest;
   final String optionTitle;
   final List<String> extensions;
 

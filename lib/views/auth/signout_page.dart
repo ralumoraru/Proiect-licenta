@@ -171,8 +171,6 @@ class _SignOutPageState extends State<SignOutPage> {
 
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setString('currency', newValue);
-
-                  // Notifică Provider-ul (doar dacă alte widgeturi ascultă acest provider)
                   Provider.of<CurrencyProvider>(context, listen: false).setCurrency(newValue);
                 }
               },
@@ -234,18 +232,18 @@ class _SignOutPageState extends State<SignOutPage> {
                 ),
                 elevation: 5,
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0), // <-- redus de la 16.0 la 8.0
+                  padding: const EdgeInsets.all(8.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Name: ${_userData?['name'] ?? "No name available"}',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500), // <-- fontSize redus
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                       ),
-                      const SizedBox(height: 4), // <-- redus de la 8 la 4
+                      const SizedBox(height: 4),
                       Text(
                         'Email: ${_userData?['email'] ?? "No email available"}',
-                        style: const TextStyle(fontSize: 14), // <-- fontSize redus
+                        style: const TextStyle(fontSize: 14),
                       ),
                     ],
                   ),

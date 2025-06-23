@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flight_ticket_checker/models/BestFlights.dart';
 import 'package:flight_ticket_checker/services/currency_provider.dart';
+import 'package:flight_ticket_checker/services/flight_type_provider.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:flight_ticket_checker/models/Flight.dart';
@@ -22,13 +23,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin{
-  // Controlerele pentru câmpurile de text
   TextEditingController _fromController = TextEditingController();
   TextEditingController _toController = TextEditingController();
   TextEditingController _departureDateController = TextEditingController();
   TextEditingController _returnDateController = TextEditingController();
 
-  // FocusNode pentru fiecare câmp de text
   FocusNode _fromFocusNode = FocusNode();
   FocusNode _toFocusNode = FocusNode();
 
@@ -37,11 +36,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   final ApiService apiService = ApiService();
 
-  // List to hold selected airports for "From" and "To"
   List<String> _selectedFromAirports = [];
   List<String> _selectedToAirports = [];
 
-  // 1. Inițializare AnimationController în initState:
   AnimationController? _rotationController;
 
   Map<String, dynamic>? _userData;
@@ -76,7 +73,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('token');
 
-    print('Token retrieved: $token'); // Verifică dacă token-ul este corect
+    print('Token retrieved: $token');
 
     if (token == null) {
       print('No token found!');
@@ -87,11 +84,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       final response = await http.get(
         Uri.parse('https://viable-flamingo-advanced.ngrok-free.app/api/user'),
         headers: {
-          'Authorization': 'Bearer $token', // Token-ul este transmis aici
+          'Authorization': 'Bearer $token',
         },
       );
 
-      // Verifică dacă răspunsul este de tip JSON
       if (response.statusCode == 200) {
         try {
           final userData = jsonDecode(response.body);
@@ -105,7 +101,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         }
       } else {
         print('Failed to load user data: ${response.statusCode}');
-        print('Response body: ${response.body}'); // Afișează conținutul complet al răspunsului
+        print('Response body: ${response.body}');
       }
     } catch (e) {
       print('Error fetching user data: $e');
@@ -124,12 +120,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
     _rotationController?.forward(from: 0.0).then((_) {
       setState(() {
-        // Swap text controllers
         final tempText = _fromController.text;
         _fromController.text = _toController.text;
         _toController.text = tempText;
 
-        // Swap selected airport chips
         final tempList = List<String>.from(_selectedFromAirports);
         _selectedFromAirports
           ..clear()
@@ -159,7 +153,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
     return GestureDetector(
       onTap: () {
-        // Ascunde tastatura și autocomplete-ul
         FocusScopeNode currentFocus = FocusScope.of(context);
         if (!currentFocus.hasPrimaryFocus && currentFocus.focusedChild != null) {
           currentFocus.unfocus();
@@ -167,7 +160,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       },
       child: Scaffold(
         backgroundColor: Colors.white,
-        body: SingleChildScrollView(  // Împachetăm tot conținutul într-un SingleChildScrollView
+        body: SingleChildScrollView(
           child: Container(
             height: screenHeight,
             child: Stack(
@@ -207,7 +200,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Butoanele pentru tipul de zbor (One-way sau Return)
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -245,7 +237,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                 ),
                               ],
                             ),
-                            // Câmpuri autocomplete pentru 'From' și 'To'
                             Stack(
                               clipBehavior: Clip.none,
                               children: [
@@ -311,11 +302,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                                 ),
                               ],
                             ),
-                            // Câmpul pentru date
                             _buildDateField(),
 
                             const SizedBox(height: 20),
-                            // Butonul de căutare
                             Center(
                               child: isLoading
                                   ? const CircularProgressIndicator()
@@ -373,7 +362,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Display selected airports as chips
           Wrap(
             children: selectedAirports
                 .map((airport) => Chip(
@@ -388,7 +376,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ),
           Autocomplete<String>(
             optionsBuilder: (TextEditingValue textEditingValue) async {
-              // Debounce: așteaptă ca utilizatorul să termine de tastat
               if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
 
               _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
@@ -420,8 +407,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   }
                   _localController.clear();
                   _updateSwitchButtonVisibility();
-
-                  // Clear local TextField controller (actual visible text field)
                   _localController.clear();
                 }
               });
@@ -430,7 +415,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 TextEditingController textEditingController,
                 FocusNode focusNode,
                 VoidCallback onFieldSubmitted) {
-              _localController = textEditingController; // Save for use in onSelected
+              _localController = textEditingController;
               return TextField(
                 controller: textEditingController,
                 focusNode: focusNode,
@@ -478,7 +463,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFE9EFF4), // Aceeași culoare ca și pentru autocomplete
+        color: const Color(0xFFE9EFF4),
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(color: Colors.white, offset: Offset(-3, -3), blurRadius: 6),
@@ -491,7 +476,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         onTap: () async {
           final DateTime? picked;
           if (isReturnFlight) {
-            // Date Range Picker pentru Return
             final DateTimeRange? result = await showDateRangePicker(
               context: context,
               firstDate: DateTime.now(),
@@ -522,7 +506,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               });
             }
           } else {
-            // Single Date Picker pentru One-way
             picked = await showDatePicker(
               context: context,
               initialDate: DateTime.now(),
@@ -532,7 +515,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             if (picked != null) {
               setState(() {
                 _departureDateController.text = picked.toString().split(' ')[0];
-                _returnDateController.clear();  // Clear return date dacă e One-way
+                _returnDateController.clear();
               });
             }
           }
@@ -547,7 +530,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             onPressed: () {
               setState(() {
                 _departureDateController.clear();
-                _returnDateController.clear(); // Clear return date if any
+                _returnDateController.clear();
               });
             },
           )
@@ -581,11 +564,11 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     try {
       final response = await http.get(uri);
       print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');  // Adaugă acest print pentru a inspecta răspunsul complet.
+      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('Data fetched from API: $data');  // Adaugă print pentru datele efective returnate de API
+        print('Data fetched from API: $data');
         return data['flights'] ?? [];
       } else {
         print('Server error: ${response.statusCode}');
@@ -639,12 +622,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       String currency = Provider.of<CurrencyProvider>(context, listen: false).currency;
       print("Currency used for search: $currency");
 
+      setFlightType(flightType);
 
       List<BestFlight> itineraries = await flightSearchService.searchFlights(
         from: from,
         to: to,
         departureDate: departureDate,
-        isReturnFlight: isReturnFlight,
         returnDate: isReturnFlight ? returnDate : null,
         type: flightType,
         currency: currency,
@@ -662,8 +645,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
         savedFlights = await getExistingFlightsForSearch(
           userId: _userData!['id'],
-          departure: departureAirportName ?? '',  // Folosește numele aeroportului pentru plecare
-          destination: destinationAirportName ?? '',  // Folosește numele aeroportului pentru destinație
+          departure: departureAirportName ?? '',
+          destination: destinationAirportName ?? '',
           departureDate: departureDate,
           returnDate: isReturnFlight ? returnDate : null,
         );
@@ -672,7 +655,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       final flightsForDate = savedFlights.where((flight) => flight['departureDate'] == departureDate).toList();
       print("Saved flights for $departureDate: $flightsForDate");
       print("Total itineraries received: ${itineraries.length}");
-      print("Itineraries details: $itineraries");  // Verifică cum arată datele aici
+      print("Itineraries details: $itineraries");
 
       if (itineraries.isNotEmpty) {
 
@@ -705,6 +688,13 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
+
+  Future<void> setFlightType(int type) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('flightType', type);
+    Provider.of<FlightTypeProvider>(context, listen: false).setFlightType(type);
+    setState(() {});
+  }
 
   String extractIataCode(String fullText) {
     final parts = fullText.split('-');
